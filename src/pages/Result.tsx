@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2, ChevronDown, Info } from "lucide-react";
+import { ArrowLeft, Share2, ChevronDown, Info, X } from "lucide-react";
+import { isPro, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 
 const DEMO_DATA: ProductResult = {
