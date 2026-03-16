@@ -1,5 +1,7 @@
 export interface FlaggedIngredient {
   name: string;
+  category: string;
+  deduction: number;
   reason: string;
   labelText: string;
 }
@@ -12,46 +14,53 @@ export interface ProductResult {
   flagged: FlaggedIngredient[];
 }
 
-// Patterns: [display name, regex, explanation]
-const FLAGGED_PATTERNS: [string, RegExp, string][] = [
-  ["Canola Oil", /canola\s+oil/i, "A processed seed oil high in omega-6 fatty acids, linked to inflammation."],
-  ["Soybean Oil", /soybean\s+oil/i, "A highly refined seed oil associated with oxidative stress and inflammatory responses."],
-  ["Sunflower Oil", /sunflower\s+oil/i, "A seed oil high in omega-6 that may promote inflammation when consumed in excess."],
-  ["Corn Oil", /corn\s+oil/i, "A refined seed oil with a high omega-6 to omega-3 ratio, linked to inflammatory processes."],
-  ["Cottonseed Oil", /cottonseed\s+oil/i, "A heavily processed oil from a non-food crop, often containing pesticide residues."],
-  ["Vegetable Oil", /vegetable\s+oil/i, "A generic term that typically refers to refined seed oils high in omega-6 fatty acids."],
-  ["Palm Oil", /palm\s+oil/i, "A highly processed oil linked to environmental concerns and potentially inflammatory."],
-  ["Safflower Oil", /safflower\s+oil/i, "A seed oil high in omega-6 fatty acids that may contribute to inflammation."],
-  ["Maltodextrin", /maltodextrin/i, "A highly processed starch that spikes blood sugar faster than table sugar."],
-  ["Artificial Flavor", /artificial\s+flavou?r/i, "A synthetic chemical blend with undisclosed compounds used to mimic natural taste."],
-  ["Natural Flavor", /natural\s+flavou?r/i, "A vague label that can include processed chemical compounds derived from natural sources."],
-  ["High Fructose Corn Syrup", /high\s+fructose\s+corn\s+syrup/i, "A highly refined sweetener linked to metabolic dysfunction and fatty liver disease."],
-  ["Aspartame", /aspartame/i, "An artificial sweetener with ongoing debate about neurological and metabolic effects."],
-  ["Sucralose", /sucralose/i, "An artificial sweetener that may disrupt gut microbiome and insulin response."],
-  ["Acesulfame Potassium", /acesulfame[\s-]*(potassium|k)/i, "An artificial sweetener with limited long-term safety data."],
-  ["MSG", /monosodium\s+glutamate|msg/i, "A flavor enhancer that may cause adverse reactions in sensitive individuals."],
-  ["TBHQ", /tbhq|tertiary\s+butylhydroquinone/i, "A synthetic preservative derived from butane, linked to immune system disruption."],
-  ["BHA", /\bbha\b|butylated\s+hydroxyanisole/i, "A synthetic preservative classified as a possible human carcinogen."],
-  ["BHT", /\bbht\b|butylated\s+hydroxytoluene/i, "A synthetic antioxidant preservative with potential endocrine-disrupting effects."],
-  ["Sodium Benzoate", /sodium\s+benzoate/i, "A preservative that may form benzene (a carcinogen) when combined with vitamin C."],
-  ["Red 40", /red\s*(no\.?\s*)?40|allura\s+red/i, "A petroleum-based artificial dye linked to hyperactivity in children."],
-  ["Yellow 5", /yellow\s*(no\.?\s*)?5|tartrazine/i, "A synthetic dye associated with allergic reactions and hyperactivity."],
-  ["Yellow 6", /yellow\s*(no\.?\s*)?6|sunset\s+yellow/i, "A petroleum-derived dye linked to hyperactivity and allergic reactions."],
-  ["Blue 1", /blue\s*(no\.?\s*)?1|brilliant\s+blue/i, "A synthetic dye with limited safety data on long-term consumption."],
-  ["Carrageenan", /carrageenan/i, "A thickener linked to gastrointestinal inflammation and digestive issues."],
-  ["Sodium Nitrite", /sodium\s+nitrite/i, "A preservative that may form cancer-linked nitrosamines during cooking."],
-  ["Potassium Bromate", /potassium\s+bromate/i, "A flour improver classified as a possible carcinogen, banned in many countries."],
+// [display name, regex, category, deduction, explanation]
+type IngredientRule = [string, RegExp, string, number, string];
+
+const RULES: IngredientRule[] = [
+  // Seed oils — 15 pts each
+  ["Canola Oil", /canola\s+oil/i, "Seed Oil", 15, "A processed seed oil high in omega-6 fatty acids, linked to inflammation."],
+  ["Soybean Oil", /soybean\s+oil/i, "Seed Oil", 15, "A highly refined seed oil associated with oxidative stress and inflammatory responses."],
+  ["Sunflower Oil", /sunflower\s+oil/i, "Seed Oil", 15, "A seed oil high in omega-6 that may promote inflammation when consumed in excess."],
+  ["Corn Oil", /corn\s+oil/i, "Seed Oil", 15, "A refined seed oil with a high omega-6 to omega-3 ratio, linked to inflammatory processes."],
+  ["Cottonseed Oil", /cottonseed\s+oil/i, "Seed Oil", 15, "A heavily processed oil from a non-food crop, often containing pesticide residues."],
+  ["Vegetable Oil", /vegetable\s+oil/i, "Seed Oil", 15, "A generic term that typically refers to refined seed oils high in omega-6 fatty acids."],
+  ["Rapeseed Oil", /rapeseed\s+oil/i, "Seed Oil", 15, "Another name for canola oil, a processed seed oil high in omega-6 fatty acids."],
+
+  // Artificial dyes — 10 pts each
+  ["Red 40", /red\s*(no\.?\s*)?40|allura\s+red/i, "Artificial Dye", 10, "A petroleum-based artificial dye linked to hyperactivity in children."],
+  ["Yellow 5", /yellow\s*(no\.?\s*)?5|tartrazine/i, "Artificial Dye", 10, "A synthetic dye associated with allergic reactions and hyperactivity."],
+  ["Yellow 6", /yellow\s*(no\.?\s*)?6|sunset\s+yellow/i, "Artificial Dye", 10, "A petroleum-derived dye linked to hyperactivity and allergic reactions."],
+  ["Blue 1", /blue\s*(no\.?\s*)?1|brilliant\s+blue/i, "Artificial Dye", 10, "A synthetic dye with limited safety data on long-term consumption."],
+  ["Blue 2", /blue\s*(no\.?\s*)?2|indigo\s+carmine/i, "Artificial Dye", 10, "A synthetic dye derived from petroleum, linked to allergic reactions."],
+  ["Red 3", /red\s*(no\.?\s*)?3|erythrosine/i, "Artificial Dye", 10, "A synthetic dye banned in cosmetics but still allowed in food, linked to thyroid issues."],
+  ["Green 3", /green\s*(no\.?\s*)?3|fast\s+green/i, "Artificial Dye", 10, "A synthetic dye with limited safety research and potential bladder tumor links."],
+
+  // Synthetic preservatives — 10 pts each
+  ["BHA", /\bbha\b|butylated\s+hydroxyanisole/i, "Preservative", 10, "A synthetic preservative classified as a possible human carcinogen."],
+  ["BHT", /\bbht\b|butylated\s+hydroxytoluene/i, "Preservative", 10, "A synthetic antioxidant preservative with potential endocrine-disrupting effects."],
+  ["TBHQ", /tbhq|tertiary\s+butylhydroquinone/i, "Preservative", 10, "A synthetic preservative derived from butane, linked to immune system disruption."],
+  ["Sodium Benzoate", /sodium\s+benzoate/i, "Preservative", 10, "A preservative that may form benzene (a carcinogen) when combined with vitamin C."],
+  ["Potassium Sorbate", /potassium\s+sorbate/i, "Preservative", 10, "A synthetic preservative that may cause allergic reactions and DNA damage at high doses."],
+
+  // Artificial sweeteners — 12 pts each
+  ["Aspartame", /aspartame/i, "Artificial Sweetener", 12, "An artificial sweetener with ongoing debate about neurological and metabolic effects."],
+  ["Sucralose", /sucralose/i, "Artificial Sweetener", 12, "An artificial sweetener that may disrupt gut microbiome and insulin response."],
+  ["Saccharin", /saccharin/i, "Artificial Sweetener", 12, "One of the oldest artificial sweeteners, previously linked to cancer in animal studies."],
+  ["Acesulfame Potassium", /acesulfame[\s-]*(potassium|k)/i, "Artificial Sweetener", 12, "An artificial sweetener with limited long-term safety data."],
+
+  // Ultra-processed additives — 5 pts each
+  ["Maltodextrin", /maltodextrin/i, "Ultra-Processed", 5, "A highly processed starch that spikes blood sugar faster than table sugar."],
+  ["Carrageenan", /carrageenan/i, "Ultra-Processed", 5, "A thickener linked to gastrointestinal inflammation and digestive issues."],
+  ["Modified Starch", /modified\s+(corn\s+|food\s+)?starch/i, "Ultra-Processed", 5, "A chemically or physically altered starch used as a thickener in processed foods."],
+  ["Artificial Flavor", /artificial\s+flavou?r/i, "Ultra-Processed", 5, "A synthetic chemical blend with undisclosed compounds used to mimic natural taste."],
+  ["Natural Flavor", /natural\s+flavou?r/i, "Ultra-Processed", 5, "A vague label that can include processed chemical compounds derived from natural sources."],
 ];
 
-/**
- * Find the surrounding text on the label for a matched ingredient.
- * Returns the clause or comma-separated segment containing the match.
- */
 function extractLabelContext(raw: string, pattern: RegExp): string {
   const match = raw.match(pattern);
   if (!match || match.index === undefined) return match?.[0] ?? "";
 
-  // Try to grab the comma/parenthesis-delimited segment
   const start = Math.max(0, raw.lastIndexOf(",", match.index) + 1);
   let end = raw.indexOf(",", match.index + match[0].length);
   if (end === -1) end = raw.length;
@@ -62,22 +71,23 @@ function extractLabelContext(raw: string, pattern: RegExp): string {
 export function analyzeIngredients(rawText: string): { score: number; flagged: FlaggedIngredient[] } {
   const flagged: FlaggedIngredient[] = [];
 
-  for (const [name, pattern, reason] of FLAGGED_PATTERNS) {
+  for (const [name, pattern, category, deduction, reason] of RULES) {
     if (pattern.test(rawText)) {
       flagged.push({
         name,
+        category,
+        deduction,
         reason,
         labelText: extractLabelContext(rawText, pattern),
       });
     }
   }
 
-  // Score: start at 100, deduct per flag (diminishing), floor at 5
   let score = 100;
-  for (let i = 0; i < flagged.length; i++) {
-    score -= Math.max(5, 18 - i * 2);
+  for (const flag of flagged) {
+    score -= flag.deduction;
   }
-  score = Math.max(5, Math.min(100, score));
+  score = Math.max(0, score);
 
   return { score, flagged };
 }
