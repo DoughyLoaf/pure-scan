@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, ChevronDown, Info, X } from "lucide-react";
 import { isPro, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
+import ResultSkeleton from "@/components/ResultSkeleton";
 
 const DEMO_DATA: ProductResult = {
   name: "Lay's Classic Chips",
@@ -139,18 +140,26 @@ const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showBanner, setShowBanner] = useState(false);
+  const [ready, setReady] = useState(false);
 
   const locationState = location.state as { product?: ProductResult; scansRemaining?: number } | null;
   const data = locationState?.product ?? DEMO_DATA;
   const scansRemaining = locationState?.scansRemaining;
 
   useEffect(() => {
-    // Show the remaining scans banner for free users after their scan
+    // Brief delay to let skeleton show, then reveal
+    const t = setTimeout(() => setReady(true), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     if (!isPro() && scansRemaining !== undefined && scansRemaining < FREE_DAILY_LIMIT_VALUE) {
       const timer = setTimeout(() => setShowBanner(true), 800);
       return () => clearTimeout(timer);
     }
   }, [scansRemaining]);
+
+  if (!ready) return <ResultSkeleton />;
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -182,7 +191,6 @@ const Result = () => {
           <ScoreRing score={data.score} />
         </div>
 
-        {/* Methodology expander */}
         <MethodologySection />
       </div>
 
@@ -232,7 +240,7 @@ const Result = () => {
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+68px)] pt-4">
         <button
           onClick={() => navigate("/alternatives")}
-          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors active:opacity-90"
+          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
         >
           See clean alternatives
         </button>
@@ -255,7 +263,7 @@ const Result = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate("/paywall")}
-                className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground active:opacity-90"
+                className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground"
               >
                 Upgrade
               </button>
