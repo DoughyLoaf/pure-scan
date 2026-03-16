@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
+import { canScan, recordScan } from "@/lib/scan-limits";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
@@ -48,9 +49,18 @@ const Scanner = () => {
   const [notFound, setNotFound] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
 
+  const navigateWithScan = (product: ProductResult) => {
+    if (!canScan()) {
+      navigate("/paywall");
+      return;
+    }
+    const { remaining } = recordScan();
+    addScanToHistory(product);
+    navigate("/result", { state: { product, scansRemaining: remaining } });
+  };
+
   const handleDemoScan = () => {
-    addScanToHistory(DEMO_DATA);
-    navigate("/result", { state: { product: DEMO_DATA } });
+    navigateWithScan(DEMO_DATA);
   };
 
   const handleBarcodeLookup = async () => {
@@ -58,10 +68,13 @@ const Scanner = () => {
     setLoading(true);
     setNotFound(false);
     try {
+      if (!canScan()) {
+        navigate("/paywall");
+        return;
+      }
       const product = await fetchProduct(barcode.trim());
       if (product) {
-        addScanToHistory(product);
-        navigate("/result", { state: { product } });
+        navigateWithScan(product);
       } else {
         setNotFound(true);
       }
@@ -82,8 +95,7 @@ const Scanner = () => {
       ingredientsRaw: manualIngredients,
       flagged,
     };
-    addScanToHistory(product);
-    navigate("/result", { state: { product } });
+    navigateWithScan(product);
   };
 
   return (

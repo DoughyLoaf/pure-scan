@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2, ChevronDown, Info } from "lucide-react";
+import { ArrowLeft, Share2, ChevronDown, Info, X } from "lucide-react";
+import { isPro, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 
 const DEMO_DATA: ProductResult = {
@@ -133,9 +134,19 @@ const MethodologySection = () => {
 const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showBanner, setShowBanner] = useState(false);
 
-  const locationState = location.state as { product?: ProductResult } | null;
+  const locationState = location.state as { product?: ProductResult; scansRemaining?: number } | null;
   const data = locationState?.product ?? DEMO_DATA;
+  const scansRemaining = locationState?.scansRemaining;
+
+  useEffect(() => {
+    // Show the remaining scans banner for free users after their scan
+    if (!isPro() && scansRemaining !== undefined && scansRemaining < FREE_DAILY_LIMIT_VALUE) {
+      const timer = setTimeout(() => setShowBanner(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [scansRemaining]);
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -222,6 +233,35 @@ const Result = () => {
           See clean alternatives
         </button>
       </div>
+
+      {/* Remaining scans banner */}
+      {showBanner && scansRemaining !== undefined && (
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+120px)] z-[60] px-4 animate-fade-in">
+          <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+            <div>
+              <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+                You're on Pure Free
+              </p>
+              <p className="text-[12px] text-muted-foreground">
+                {scansRemaining === 0
+                  ? "No scans left today"
+                  : `${scansRemaining} scan${scansRemaining === 1 ? "" : "s"} left today`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate("/paywall")}
+                className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground active:opacity-90"
+              >
+                Upgrade
+              </button>
+              <button onClick={() => setShowBanner(false)} className="text-muted-foreground active:text-foreground">
+                <X size={16} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

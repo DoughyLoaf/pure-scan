@@ -9,6 +9,7 @@ import Scanner from "./pages/Scanner";
 import Result from "./pages/Result";
 import Alternatives from "./pages/Alternatives";
 import Profile from "./pages/Profile";
+import Paywall from "./pages/Paywall";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/result" element={<Result />} />
           <Route path="/alternatives" element={<Alternatives />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/paywall" element={<Paywall />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <BottomNav />
