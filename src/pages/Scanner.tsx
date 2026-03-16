@@ -49,6 +49,12 @@ const Scanner = () => {
   const [notFound, setNotFound] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
   const [showPulse, setShowPulse] = useState(false);
+  const [blocked, setBlocked] = useState(!canScan());
+
+  // Re-check on mount (e.g. coming back from result)
+  useEffect(() => {
+    setBlocked(!canScan());
+  }, []);
 
   const navigateWithScan = (product: ProductResult) => {
     if (!canScan()) {
