@@ -102,6 +102,7 @@ const FlagCard = ({ ingredient }: { ingredient: FlaggedIngredient }) => (
 
 const MethodologySection = () => {
   const [open, setOpen] = useState(false);
+  
 
   return (
     <div className="mt-5 w-full">
@@ -116,8 +117,15 @@ const MethodologySection = () => {
           className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {open && (
-        <ul className="mt-3 animate-fade-in space-y-2.5 rounded-2xl border border-border bg-card px-5 py-4 text-[13px] leading-relaxed text-muted-foreground">
+      <div
+        className="overflow-hidden transition-all duration-300 ease-out"
+        style={{
+          maxHeight: open ? "300px" : "0px",
+          opacity: open ? 1 : 0,
+          marginTop: open ? "12px" : "0px",
+        }}
+      >
+        <ul className="space-y-2.5 rounded-2xl border border-border bg-card px-5 py-4 text-[13px] leading-relaxed text-muted-foreground">
           <li className="flex gap-2">
             <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
             We flag seed oils: canola, soybean, sunflower, corn, cottonseed.
@@ -131,7 +139,7 @@ const MethodologySection = () => {
             Scores are based purely on ingredients. No brand can pay to improve their rating.
           </li>
         </ul>
-      )}
+      </div>
     </div>
   );
 };
