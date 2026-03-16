@@ -104,7 +104,42 @@ const FlagCard = ({ ingredient }: { ingredient: FlaggedIngredient }) => (
   </div>
 );
 
-const Result = () => {
+const MethodologySection = () => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-5 w-full">
+      <button
+        onClick={() => setOpen(!open)}
+        className="mx-auto flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors active:text-foreground"
+      >
+        How we score this
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <ul className="mt-3 animate-fade-in space-y-2.5 rounded-2xl border border-border bg-card px-5 py-4 text-[13px] leading-relaxed text-muted-foreground">
+          <li className="flex gap-2">
+            <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            We flag seed oils: canola, soybean, sunflower, corn, cottonseed.
+          </li>
+          <li className="flex gap-2">
+            <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            We flag artificial additives: dyes, preservatives, sweeteners.
+          </li>
+          <li className="flex gap-2">
+            <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            Scores are based purely on ingredients. No brand can pay to improve their rating.
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+};
+
   const navigate = useNavigate();
   const location = useLocation();
 
