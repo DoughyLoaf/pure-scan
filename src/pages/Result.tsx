@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, ChevronDown, Info, X } from "lucide-react";
-import { isPro, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
+import { isPro, getScansRemaining, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 import ResultSkeleton from "@/components/ResultSkeleton";
 
@@ -141,23 +141,24 @@ const Result = () => {
   const location = useLocation();
   const [showBanner, setShowBanner] = useState(false);
   const [ready, setReady] = useState(false);
+  const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
 
-  const locationState = location.state as { product?: ProductResult; scansRemaining?: number } | null;
+  const locationState = location.state as { product?: ProductResult } | null;
   const data = locationState?.product ?? DEMO_DATA;
-  const scansRemaining = locationState?.scansRemaining;
 
   useEffect(() => {
-    // Brief delay to let skeleton show, then reveal
     const t = setTimeout(() => setReady(true), 200);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    if (!isPro() && scansRemaining !== undefined && scansRemaining < FREE_DAILY_LIMIT_VALUE) {
+    const remaining = getScansRemaining();
+    setScansRemaining(remaining);
+    if (!isPro() && remaining < FREE_DAILY_LIMIT_VALUE) {
       const timer = setTimeout(() => setShowBanner(true), 800);
       return () => clearTimeout(timer);
     }
-  }, [scansRemaining]);
+  }, []);
 
   if (!ready) return <ResultSkeleton />;
 
@@ -247,7 +248,7 @@ const Result = () => {
       </div>
 
       {/* Remaining scans banner */}
-      {showBanner && scansRemaining !== undefined && (
+      {showBanner && (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+120px)] z-[60] px-4 animate-fade-in">
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
             <div>
