@@ -5,7 +5,7 @@ const tabs = [
   { icon: Home, label: "Home", path: "/" },
   { icon: ScanLine, label: "Scan", path: "/scanner" },
   { icon: BarChart3, label: "Result", path: "/result" },
-  { icon: Repeat2, label: "Alts", path: "/alternatives" },
+  { icon: Repeat2, label: "Alternatives", path: "/alternatives" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
@@ -24,7 +24,7 @@ const BottomNav = () => {
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex flex-col items-center gap-0.5 py-3 px-2 text-[10px] sm:text-[11px] font-medium transition-colors ${
+              className={`flex flex-col items-center gap-0.5 py-3 px-2 text-[10px] font-medium transition-colors ${
                 active
                   ? "text-primary"
                   : "text-muted-foreground"
