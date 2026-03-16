@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useRef, useState } from "react";
 import { getDirection } from "@/lib/nav-direction";
 import BottomNav from "./components/BottomNav";
 import SplashScreen from "./components/SplashScreen";
@@ -47,23 +47,27 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => {
+const App = forwardRef<HTMLDivElement>((_props, ref) => {
   const [showSplash, setShowSplash] = useState(true);
   const hideSplash = useCallback(() => setShowSplash(false), []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        {showSplash && <SplashScreen onFinish={hideSplash} />}
-        <BrowserRouter>
-          <AnimatedRoutes />
-          <BottomNav />
-        </BrowserRouter>
+        <div ref={ref}>
+          <Toaster />
+          <Sonner />
+          {showSplash && <SplashScreen onFinish={hideSplash} />}
+          <BrowserRouter>
+            <AnimatedRoutes />
+            <BottomNav />
+          </BrowserRouter>
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
+});
+
+App.displayName = "App";
 
 export default App;
