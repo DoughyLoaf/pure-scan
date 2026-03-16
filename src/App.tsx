@@ -9,6 +9,7 @@ import Scanner from "./pages/Scanner";
 import Result from "./pages/Result";
 import Alternatives from "./pages/Alternatives";
 import Profile from "./pages/Profile";
+import Paywall from "./pages/Paywall";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
