@@ -44,7 +44,11 @@ const ScoreRing = ({ score }: { score: number }) => {
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
-            className="transition-all duration-700 ease-out"
+            className="animate-ring-draw"
+            style={{
+              "--ring-circumference": `${circumference}`,
+              "--ring-offset": `${offset}`,
+            } as React.CSSProperties}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">

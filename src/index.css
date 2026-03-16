@@ -56,4 +56,12 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
   }
+
+  /* Button press scale — subtle, under 300ms */
+  button {
+    transition: transform 0.15s ease-out;
+  }
+  button:active {
+    transform: scale(0.97);
+  }
 }
