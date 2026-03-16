@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
