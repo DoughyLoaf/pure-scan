@@ -140,6 +140,7 @@ const MethodologySection = () => {
   );
 };
 
+const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
