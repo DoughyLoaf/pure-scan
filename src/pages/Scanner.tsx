@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
+import { addScanToHistory } from "@/lib/scan-history";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
