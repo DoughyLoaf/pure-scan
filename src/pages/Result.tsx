@@ -1,39 +1,19 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, ChevronDown } from "lucide-react";
+import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 
-interface FlaggedIngredient {
-  name: string;
-  reason: string;
-  labelText: string;
-}
-
-const DEMO_DATA = {
+const DEMO_DATA: ProductResult = {
   name: "Lay's Classic Chips",
   brand: "Lay's",
   score: 34,
+  ingredientsRaw: "",
   flagged: [
-    {
-      name: "Canola Oil",
-      reason: "A processed seed oil high in omega-6 fatty acids, linked to inflammation.",
-      labelText: "Canola Oil",
-    },
-    {
-      name: "Soybean Oil",
-      reason: "A highly refined seed oil associated with oxidative stress and inflammatory responses.",
-      labelText: "Soybean Oil",
-    },
-    {
-      name: "Maltodextrin",
-      reason: "A highly processed starch that spikes blood sugar faster than table sugar.",
-      labelText: "Maltodextrin",
-    },
-    {
-      name: "Artificial Flavor",
-      reason: "A synthetic chemical blend with undisclosed compounds used to mimic natural taste.",
-      labelText: "Natural and Artificial Flavor",
-    },
-  ] as FlaggedIngredient[],
+    { name: "Canola Oil", reason: "A processed seed oil high in omega-6 fatty acids, linked to inflammation.", labelText: "Canola Oil" },
+    { name: "Soybean Oil", reason: "A highly refined seed oil associated with oxidative stress and inflammatory responses.", labelText: "Soybean Oil" },
+    { name: "Maltodextrin", reason: "A highly processed starch that spikes blood sugar faster than table sugar.", labelText: "Maltodextrin" },
+    { name: "Artificial Flavor", reason: "A synthetic chemical blend with undisclosed compounds used to mimic natural taste.", labelText: "Natural and Artificial Flavor" },
+  ],
 };
 
 const scoreColor = (score: number) => {
