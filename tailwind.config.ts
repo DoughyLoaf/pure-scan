@@ -85,9 +85,18 @@ export default {
           "0%": { opacity: "0", transform: "translateX(16px)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
+        "page-back": {
+          "0%": { opacity: "0", transform: "translateX(-16px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
         "ring-draw": {
           "0%": { strokeDashoffset: "var(--ring-circumference)" },
           "100%": { strokeDashoffset: "var(--ring-offset)" },
+        },
+        "scan-pulse": {
+          "0%": { opacity: "0" },
+          "30%": { opacity: "0.6" },
+          "100%": { opacity: "0" },
         },
       },
       animation: {
@@ -96,7 +105,9 @@ export default {
         "scan-line": "scan-line 2.5s ease-in-out infinite",
         "fade-in": "fade-in 0.25s ease-out",
         "page-in": "page-in 0.25s ease-out both",
+        "page-back": "page-back 0.25s ease-out both",
         "ring-draw": "ring-draw 0.6s ease-out both",
+        "scan-pulse": "scan-pulse 0.5s ease-out both",
       },
     },
   },

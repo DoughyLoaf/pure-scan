@@ -48,6 +48,7 @@ const Scanner = () => {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
+  const [showPulse, setShowPulse] = useState(false);
 
   const navigateWithScan = (product: ProductResult) => {
     if (!canScan()) {
@@ -56,7 +57,12 @@ const Scanner = () => {
     }
     const { remaining } = recordScan();
     addScanToHistory(product);
-    navigate("/result", { state: { product, scansRemaining: remaining } });
+
+    // Haptic-style visual pulse before navigating
+    setShowPulse(true);
+    setTimeout(() => {
+      navigate("/result", { state: { product, scansRemaining: remaining } });
+    }, 350);
   };
 
   const handleDemoScan = () => {
@@ -100,6 +106,11 @@ const Scanner = () => {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#0a0a0a]">
+      {/* Scan-complete pulse overlay */}
+      {showPulse && (
+        <div className="absolute inset-0 z-[100] animate-scan-pulse bg-primary/40 pointer-events-none" />
+      )}
+
       {/* Top bar */}
       <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
         <span className="text-sm font-semibold tracking-tight text-white/90" style={{ fontFamily: "var(--font-display)" }}>
@@ -162,11 +173,20 @@ const Scanner = () => {
             <button
               onClick={handleBarcodeLookup}
               disabled={loading || !barcode.trim()}
-              className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50 active:opacity-90"
+              className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : "Look up"}
             </button>
           </div>
+
+          {/* Loading skeleton for barcode lookup */}
+          {loading && (
+            <div className="mt-4 space-y-3">
+              <div className="animate-pulse rounded-xl bg-muted h-4 w-3/4" />
+              <div className="animate-pulse rounded-xl bg-muted h-4 w-1/2" />
+              <div className="animate-pulse rounded-xl bg-muted h-12 w-full" />
+            </div>
+          )}
 
           {notFound && (
             <div className="mt-4 animate-fade-in">
@@ -183,7 +203,7 @@ const Scanner = () => {
               <button
                 onClick={handleManualIngredients}
                 disabled={!manualIngredients.trim()}
-                className="mt-2 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50 active:opacity-90"
+                className="mt-2 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
               >
                 Analyze ingredients
               </button>
@@ -197,7 +217,8 @@ const Scanner = () => {
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
           <button
             onClick={handleDemoScan}
-            className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors active:opacity-90"
+            disabled={showPulse}
+            className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-70"
           >
             Demo: Scan a product
           </button>
