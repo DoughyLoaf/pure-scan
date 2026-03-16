@@ -211,8 +211,22 @@ const Profile = () => {
           </div>
         </div>
 
+        {/* Debug */}
+        <div className="mt-8">
+          <button
+            onClick={() => {
+              localStorage.removeItem("pure_daily_scans");
+              localStorage.removeItem("pure_scan_date");
+              window.location.reload();
+            }}
+            className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-xs font-medium text-muted-foreground transition-colors active:bg-muted"
+          >
+            🔄 Reset scans (debug)
+          </button>
+        </div>
+
         {/* App info */}
-        <p className="mt-8 text-center text-[11px] text-muted-foreground">
+        <p className="mt-4 text-center text-[11px] text-muted-foreground">
           Pure v1.0 · Made with care for your health
         </p>
       </div>
