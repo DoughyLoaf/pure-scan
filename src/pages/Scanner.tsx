@@ -49,6 +49,7 @@ const Scanner = () => {
   const [manualIngredients, setManualIngredients] = useState("");
 
   const handleDemoScan = () => {
+    addScanToHistory(DEMO_DATA);
     navigate("/result", { state: { product: DEMO_DATA } });
   };
 
