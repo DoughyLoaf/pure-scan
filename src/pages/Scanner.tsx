@@ -68,10 +68,13 @@ const Scanner = () => {
     setLoading(true);
     setNotFound(false);
     try {
+      if (!canScan()) {
+        navigate("/paywall");
+        return;
+      }
       const product = await fetchProduct(barcode.trim());
       if (product) {
-        addScanToHistory(product);
-        navigate("/result", { state: { product } });
+        navigateWithScan(product);
       } else {
         setNotFound(true);
       }
