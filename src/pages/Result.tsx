@@ -66,12 +66,22 @@ const ScoreRing = ({ score }: { score: number }) => {
 const FlagCard = ({ ingredient }: { ingredient: FlaggedIngredient }) => (
   <div className="rounded-2xl border border-border bg-card p-4">
     <div className="flex items-start justify-between gap-3">
-      <h4 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-        {ingredient.name}
-      </h4>
-      <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
-        Avoid
-      </span>
+      <div>
+        <h4 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+          {ingredient.name}
+        </h4>
+        <span className="mt-0.5 inline-block text-[11px] font-medium text-muted-foreground">
+          {ingredient.category}
+        </span>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
+          Avoid
+        </span>
+        <span className="text-[11px] font-semibold text-destructive">
+          −{ingredient.deduction} pts
+        </span>
+      </div>
     </div>
     <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
       {ingredient.reason}
