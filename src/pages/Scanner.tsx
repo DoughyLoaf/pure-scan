@@ -49,9 +49,18 @@ const Scanner = () => {
   const [notFound, setNotFound] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
 
+  const navigateWithScan = (product: ProductResult) => {
+    if (!canScan()) {
+      navigate("/paywall");
+      return;
+    }
+    const { remaining } = recordScan();
+    addScanToHistory(product);
+    navigate("/result", { state: { product, scansRemaining: remaining } });
+  };
+
   const handleDemoScan = () => {
-    addScanToHistory(DEMO_DATA);
-    navigate("/result", { state: { product: DEMO_DATA } });
+    navigateWithScan(DEMO_DATA);
   };
 
   const handleBarcodeLookup = async () => {
