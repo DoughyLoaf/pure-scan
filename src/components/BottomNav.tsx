@@ -13,6 +13,9 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Hide on scanner to avoid z-index conflicts with fullscreen overlay
+  if (location.pathname === "/scanner") return null;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background">
       <div className="mx-auto flex max-w-md items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
