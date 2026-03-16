@@ -140,6 +140,9 @@ const Result = () => {
         <div className="mt-6">
           <ScoreRing score={data.score} />
         </div>
+
+        {/* Methodology expander */}
+        <MethodologySection />
       </div>
 
       {/* Flagged Ingredients */}
