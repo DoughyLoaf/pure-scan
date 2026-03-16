@@ -171,7 +171,17 @@ const Result = () => {
         <MethodologySection />
       </div>
 
-      {/* Score Breakdown */}
+      {/* Missing ingredients notice */}
+      {data.ingredientsRaw.trim() === "" && (
+        <div className="mx-6 mt-6 flex items-start gap-2.5 rounded-2xl border border-border bg-accent/50 px-4 py-3">
+          <Info size={16} className="mt-0.5 shrink-0 text-primary" strokeWidth={2} />
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">No ingredient data available.</span>{" "}
+            This product's score may be incomplete. The database doesn't have an ingredient list for this item yet.
+          </p>
+        </div>
+      )}
+
       <div className="mt-10 px-6">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Score breakdown
