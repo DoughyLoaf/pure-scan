@@ -171,8 +171,28 @@ const Result = () => {
         <MethodologySection />
       </div>
 
-      {/* Flagged Ingredients */}
+      {/* Score Breakdown */}
       <div className="mt-10 px-6">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Score breakdown
+        </h3>
+        <div className="mb-6 rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Starting score</span>
+            <span className="font-semibold" style={{ fontFamily: "var(--font-display)" }}>100</span>
+          </div>
+          {data.flagged.map((ing) => (
+            <div key={ing.name} className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{ing.name}</span>
+              <span className="font-semibold text-destructive">−{ing.deduction}</span>
+            </div>
+          ))}
+          <div className="mt-3 border-t border-border pt-3 flex items-center justify-between text-sm">
+            <span className="font-semibold" style={{ fontFamily: "var(--font-display)" }}>Pure Score</span>
+            <span className="font-bold text-lg" style={{ fontFamily: "var(--font-display)", color: scoreColor(data.score).ring }}>{data.score}</span>
+          </div>
+        </div>
+
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Why this score?
         </h3>
