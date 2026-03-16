@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2 } from "lucide-react";
+import { ArrowLeft, Share2, ChevronDown } from "lucide-react";
 
 interface FlaggedIngredient {
   name: string;
