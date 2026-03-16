@@ -63,8 +63,8 @@ const HistoryItem = ({ entry }: { entry: ScanHistoryEntry }) => {
         {entry.product.score}
       </div>
       <div className="flex-1 overflow-hidden">
-        <p className="truncate text-[13px] font-semibold">{entry.product.name}</p>
-        <p className="text-[11px] text-muted-foreground">{getRelativeTime(entry.scannedAt)}</p>
+        <p className="truncate text-sm font-semibold">{entry.product.name}</p>
+        <p className="text-xs text-muted-foreground">{getRelativeTime(entry.scannedAt)}</p>
       </div>
       <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
     </button>
@@ -92,14 +92,14 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      <div className="px-6 pt-14">
+      <div className="px-5 sm:px-6 pt-12 sm:pt-14">
         {/* Header */}
-        <h1 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
           Profile
         </h1>
 
         {/* Plan Card */}
-        <div className="mt-6 rounded-2xl border border-border bg-card p-4">
+        <div className="mt-5 sm:mt-6 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent">
               {pro ? (
@@ -112,14 +112,14 @@ const Profile = () => {
               <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
                 {pro ? "Pure Pro" : "Pure Free"}
               </p>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {pro ? "Unlimited scans" : `${scansRemaining} scans left today`}
               </p>
             </div>
             {!pro && (
               <button
                 onClick={() => navigate("/paywall")}
-                className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground active:opacity-90"
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
               >
                 Upgrade
               </button>
@@ -128,10 +128,10 @@ const Profile = () => {
         </div>
 
         {/* Dietary Preferences */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="mt-7 sm:mt-8">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <Leaf size={16} className="text-primary" strokeWidth={2} />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Dietary Preferences
             </h2>
           </div>
@@ -142,7 +142,7 @@ const Profile = () => {
                 <button
                   key={opt.id}
                   onClick={() => togglePref(opt.id)}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
                     active
                       ? "border-primary bg-accent text-foreground"
                       : "border-border bg-card text-muted-foreground"
@@ -157,18 +157,18 @@ const Profile = () => {
         </div>
 
         {/* Scan History */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mt-7 sm:mt-8">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-primary" strokeWidth={2} />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Scan History
               </h2>
             </div>
             {history.length > 0 && (
               <button
                 onClick={clearHistory}
-                className="flex items-center gap-1 text-[12px] text-muted-foreground active:text-destructive"
+                className="flex items-center gap-1 text-xs text-muted-foreground active:text-destructive"
               >
                 <Trash2 size={12} strokeWidth={2} />
                 Clear
@@ -189,8 +189,8 @@ const Profile = () => {
         </div>
 
         {/* Settings */}
-        <div className="mt-8">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="mt-7 sm:mt-8">
+          <h2 className="mb-3 sm:mb-4 text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Settings
           </h2>
           <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card overflow-hidden">

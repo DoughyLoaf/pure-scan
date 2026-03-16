@@ -62,21 +62,21 @@ const MiniScore = ({ score }: { score: number }) => {
 
 const AlternativeCard = ({ alt }: { alt: Alternative }) => (
   <div className="rounded-2xl border border-border bg-card p-4">
-    <div className="flex gap-4">
+    <div className="flex gap-3 sm:gap-4">
       <MiniScore score={alt.score} />
       <div className="flex-1">
         <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
           {alt.brand}
         </p>
-        <h3 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+        <h3 className="text-sm sm:text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
           {alt.name}
         </h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
           {alt.reason}
         </p>
       </div>
     </div>
-    <button className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-background py-2.5 text-[13px] font-semibold text-foreground transition-colors active:bg-muted">
+    <button className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-background py-2.5 text-sm font-semibold text-foreground transition-colors active:bg-muted">
       <MapPin size={14} strokeWidth={2} />
       Find near me
     </button>
@@ -98,7 +98,7 @@ const Alternatives = () => {
         </button>
       </div>
 
-      <div className="mt-6 px-6">
+      <div className="mt-6 px-5 sm:px-6">
         <h1
           className="text-lg font-semibold leading-snug"
           style={{ fontFamily: "var(--font-display)" }}
@@ -108,14 +108,14 @@ const Alternatives = () => {
         </h1>
 
         {/* Cards */}
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="mt-5 sm:mt-6 flex flex-col gap-3">
           {ALTERNATIVES.map((alt) => (
             <AlternativeCard key={alt.name} alt={alt} />
           ))}
         </div>
 
         {/* Source attribution */}
-        <div className="mt-8 flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
+        <div className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Info size={13} strokeWidth={1.8} />
           Data sourced from Open Food Facts
         </div>

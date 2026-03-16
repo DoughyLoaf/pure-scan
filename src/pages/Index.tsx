@@ -18,10 +18,10 @@ const HistoryCard = ({ entry }: { entry: ScanHistoryEntry }) => {
   return (
     <button
       onClick={() => navigate("/result", { state: { product } })}
-      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4 text-left transition-colors active:bg-muted"
     >
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+        className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
         style={{
           fontFamily: "var(--font-display)",
           color: scoreColor(product.score),
@@ -34,7 +34,7 @@ const HistoryCard = ({ entry }: { entry: ScanHistoryEntry }) => {
         <p className="truncate text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
           {product.name}
         </p>
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {product.brand} · {timeAgo}
         </p>
       </div>
@@ -109,7 +109,7 @@ const StreakTracker = ({ history }: { history: ScanHistoryEntry[] }) => {
           return (
             <div key={dateStr} className="flex flex-col items-center gap-1.5">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors ${
+                className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors ${
                   active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-muted-foreground"
@@ -117,7 +117,7 @@ const StreakTracker = ({ history }: { history: ScanHistoryEntry[] }) => {
               >
                 {active ? "✓" : ""}
               </div>
-              <span className="text-[10px] text-muted-foreground">{DAY_LABELS[dayIdx]}</span>
+              <span className="text-[11px] text-muted-foreground">{DAY_LABELS[dayIdx]}</span>
             </div>
           );
         })}
@@ -137,10 +137,10 @@ const Index = () => {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background px-6 pb-24 pt-14">
+    <div className="flex min-h-screen flex-col bg-background px-5 sm:px-6 pb-24 pt-12 sm:pt-14">
       {/* Logo */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
           Pure<span className="text-primary">.</span>
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -149,19 +149,19 @@ const Index = () => {
       </div>
 
       {/* Hero CTA */}
-      <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-10">
-        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent">
-          <ScanLine className="text-primary" size={28} strokeWidth={1.8} />
+      <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-5 sm:px-6 py-8 sm:py-10">
+        <div className="mb-4 sm:mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-accent">
+          <ScanLine className="text-primary" size={26} strokeWidth={1.8} />
         </div>
         <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
           Scan a product
         </h2>
-        <p className="mt-1 mb-6 text-center text-sm text-muted-foreground">
+        <p className="mt-1 mb-5 sm:mb-6 text-center text-sm text-muted-foreground">
           Check ingredients for seed oils, additives &amp; artificial ingredients.
         </p>
         <button
           onClick={() => navigate("/scanner")}
-          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors active:opacity-90"
+          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
         >
           Start Scanning
         </button>
@@ -169,20 +169,20 @@ const Index = () => {
 
       {/* Stats Row */}
       {totalScanned > 0 && (
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-            <ShieldCheck size={20} className="shrink-0 text-primary" />
+        <div className="mt-4 sm:mt-5 grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4">
+            <ShieldCheck size={18} className="shrink-0 text-primary" />
             <div>
-              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              <p className="text-base sm:text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
                 {totalScanned}
               </p>
               <p className="text-[11px] text-muted-foreground">Products scanned</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-            <AlertTriangle size={20} className="shrink-0 text-destructive" />
+          <div className="flex items-center gap-2 sm:gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4">
+            <AlertTriangle size={18} className="shrink-0 text-destructive" />
             <div>
-              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              <p className="text-base sm:text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
                 {totalFlagged}
               </p>
               <p className="text-[11px] text-muted-foreground">Ingredients flagged</p>
@@ -193,18 +193,18 @@ const Index = () => {
 
       {/* Streak Tracker */}
       {totalScanned > 0 && (
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           <StreakTracker history={history} />
         </div>
       )}
 
       {/* Recent Scans */}
-      <div className="mt-8">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="mt-6 sm:mt-8">
+        <h3 className="mb-3 sm:mb-4 text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Recent Scans
         </h3>
         {history.length === 0 ? (
-          <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-10">
+          <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-8 sm:py-10">
             <Clock className="mb-3 text-muted-foreground" size={24} strokeWidth={1.6} />
             <p className="text-sm text-muted-foreground">
               No scans yet. Scan your first product above.
