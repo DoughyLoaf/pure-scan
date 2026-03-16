@@ -134,9 +134,19 @@ const MethodologySection = () => {
 const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showBanner, setShowBanner] = useState(false);
 
-  const locationState = location.state as { product?: ProductResult } | null;
+  const locationState = location.state as { product?: ProductResult; scansRemaining?: number } | null;
   const data = locationState?.product ?? DEMO_DATA;
+  const scansRemaining = locationState?.scansRemaining;
+
+  useEffect(() => {
+    // Show the remaining scans banner for free users after their scan
+    if (!isPro() && scansRemaining !== undefined && scansRemaining < FREE_DAILY_LIMIT_VALUE) {
+      const timer = setTimeout(() => setShowBanner(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [scansRemaining]);
 
   return (
     <div className="min-h-screen bg-background pb-32">
