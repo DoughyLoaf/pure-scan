@@ -102,7 +102,7 @@ const FlagCard = ({ ingredient }: { ingredient: FlaggedIngredient }) => (
 
 const MethodologySection = () => {
   const [open, setOpen] = useState(false);
-  const contentRef = useState<HTMLUListElement | null>(null);
+  
 
   return (
     <div className="mt-5 w-full">
