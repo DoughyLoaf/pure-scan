@@ -1,7 +1,8 @@
-import { ScanLine, Clock, ChevronRight } from "lucide-react";
+import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
+import { useMemo } from "react";
 
 const scoreColor = (score: number) => {
   if (score < 40) return "hsl(0, 72%, 51%)";
@@ -19,7 +20,6 @@ const HistoryCard = ({ entry }: { entry: ScanHistoryEntry }) => {
       onClick={() => navigate("/result", { state: { product } })}
       className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
     >
-      {/* Mini score */}
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
         style={{
@@ -54,14 +54,92 @@ function getRelativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
+function getLast7Days(): string[] {
+  const days: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+const StreakTracker = ({ history }: { history: ScanHistoryEntry[] }) => {
+  const last7 = useMemo(() => getLast7Days(), []);
+  const scanDays = useMemo(() => {
+    const set = new Set<string>();
+    history.forEach((e) => set.add(e.scannedAt.slice(0, 10)));
+    return set;
+  }, [history]);
+
+  const streak = useMemo(() => {
+    let count = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      if (scanDays.has(d.toISOString().slice(0, 10))) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  }, [scanDays]);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Flame size={16} className="text-primary" />
+          <span className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            Your streak
+          </span>
+        </div>
+        <span className="text-sm font-bold text-primary" style={{ fontFamily: "var(--font-display)" }}>
+          {streak} {streak === 1 ? "day" : "days"}
+        </span>
+      </div>
+      <div className="flex justify-between">
+        {last7.map((dateStr) => {
+          const dayIdx = new Date(dateStr + "T12:00:00").getDay();
+          const active = scanDays.has(dateStr);
+          return (
+            <div key={dateStr} className="flex flex-col items-center gap-1.5">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors ${
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-muted-foreground"
+                }`}
+              >
+                {active ? "✓" : ""}
+              </div>
+              <span className="text-[10px] text-muted-foreground">{DAY_LABELS[dayIdx]}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const history = getScanHistory();
 
+  const totalScanned = history.length;
+  const totalFlagged = useMemo(
+    () => history.reduce((sum, e) => sum + e.product.flagged.length, 0),
+    [history]
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-background px-6 pb-24 pt-14">
       {/* Logo */}
-      <div className="mb-10">
+      <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
           Pure<span className="text-primary">.</span>
         </h1>
@@ -89,8 +167,39 @@ const Index = () => {
         </button>
       </div>
 
+      {/* Stats Row */}
+      {totalScanned > 0 && (
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+            <ShieldCheck size={20} className="shrink-0 text-primary" />
+            <div>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+                {totalScanned}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Products scanned</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+            <AlertTriangle size={20} className="shrink-0 text-destructive" />
+            <div>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+                {totalFlagged}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Ingredients flagged</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Streak Tracker */}
+      {totalScanned > 0 && (
+        <div className="mt-5">
+          <StreakTracker history={history} />
+        </div>
+      )}
+
       {/* Recent Scans */}
-      <div className="mt-10">
+      <div className="mt-8">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Recent Scans
         </h3>
