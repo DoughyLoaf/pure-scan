@@ -47,23 +47,27 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => {
+const App = forwardRef<HTMLDivElement>((_props, ref) => {
   const [showSplash, setShowSplash] = useState(true);
   const hideSplash = useCallback(() => setShowSplash(false), []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        {showSplash && <SplashScreen onFinish={hideSplash} />}
-        <BrowserRouter>
-          <AnimatedRoutes />
-          <BottomNav />
-        </BrowserRouter>
+        <div ref={ref}>
+          <Toaster />
+          <Sonner />
+          {showSplash && <SplashScreen onFinish={hideSplash} />}
+          <BrowserRouter>
+            <AnimatedRoutes />
+            <BottomNav />
+          </BrowserRouter>
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
+});
+
+App.displayName = "App";
 
 export default App;
