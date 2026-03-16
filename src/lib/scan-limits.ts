@@ -29,6 +29,7 @@ export function recordScan(): { remaining: number; blocked: boolean } {
     count = parseInt(localStorage.getItem(SCAN_COUNT_KEY) || "0", 10);
   } else {
     localStorage.setItem(SCAN_DATE_KEY, today);
+    localStorage.setItem(SCAN_COUNT_KEY, "0");
   }
 
   count += 1;
