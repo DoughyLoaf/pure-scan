@@ -95,8 +95,7 @@ const Scanner = () => {
       ingredientsRaw: manualIngredients,
       flagged,
     };
-    addScanToHistory(product);
-    navigate("/result", { state: { product } });
+    navigateWithScan(product);
   };
 
   return (
