@@ -124,8 +124,8 @@ const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use passed state or fall back to demo data
-  const data = DEMO_DATA;
+  const locationState = location.state as { product?: ProductResult } | null;
+  const data = locationState?.product ?? DEMO_DATA;
 
   return (
     <div className="min-h-screen bg-background pb-32">
