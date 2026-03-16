@@ -248,7 +248,7 @@ const Result = () => {
       </div>
 
       {/* Remaining scans banner */}
-      {showBanner && scansRemaining !== undefined && (
+      {showBanner && (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+120px)] z-[60] px-4 animate-fade-in">
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
             <div>
