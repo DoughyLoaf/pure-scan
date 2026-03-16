@@ -3,9 +3,10 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getDirection } from "@/lib/nav-direction";
 import BottomNav from "./components/BottomNav";
+import SplashScreen from "./components/SplashScreen";
 import Index from "./pages/Index";
 import Scanner from "./pages/Scanner";
 import Result from "./pages/Result";
@@ -46,17 +47,23 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AnimatedRoutes />
-        <BottomNav />
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+  const hideSplash = useCallback(() => setShowSplash(false), []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        {showSplash && <SplashScreen onFinish={hideSplash} />}
+        <BrowserRouter>
+          <AnimatedRoutes />
+          <BottomNav />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
