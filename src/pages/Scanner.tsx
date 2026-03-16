@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
-import { canScan, recordScan } from "@/lib/scan-limits";
+import { canScan, recordScan, getScansRemaining } from "@/lib/scan-limits";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
@@ -49,6 +49,12 @@ const Scanner = () => {
   const [notFound, setNotFound] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
   const [showPulse, setShowPulse] = useState(false);
+  const [blocked, setBlocked] = useState(!canScan());
+
+  // Re-check on mount (e.g. coming back from result)
+  useEffect(() => {
+    setBlocked(!canScan());
+  }, []);
 
   const navigateWithScan = (product: ProductResult) => {
     if (!canScan()) {
@@ -66,18 +72,22 @@ const Scanner = () => {
   };
 
   const handleDemoScan = () => {
+    if (blocked) {
+      navigate("/paywall");
+      return;
+    }
     navigateWithScan(DEMO_DATA);
   };
 
   const handleBarcodeLookup = async () => {
     if (!barcode.trim()) return;
+    if (blocked) {
+      navigate("/paywall");
+      return;
+    }
     setLoading(true);
     setNotFound(false);
     try {
-      if (!canScan()) {
-        navigate("/paywall");
-        return;
-      }
       const product = await fetchProduct(barcode.trim());
       if (product) {
         navigateWithScan(product);
@@ -215,13 +225,22 @@ const Scanner = () => {
       {/* Demo button */}
       {!showManual && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
-          <button
-            onClick={handleDemoScan}
-            disabled={showPulse}
-            className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-70"
-          >
-            Demo: Scan a product
-          </button>
+          {blocked ? (
+            <button
+              onClick={() => navigate("/paywall")}
+              className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors"
+            >
+              No scans left — Upgrade
+            </button>
+          ) : (
+            <button
+              onClick={handleDemoScan}
+              disabled={showPulse}
+              className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-70"
+            >
+              Demo: Scan a product
+            </button>
+          )}
         </div>
       )}
     </div>
