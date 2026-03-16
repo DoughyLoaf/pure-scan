@@ -233,6 +233,35 @@ const Result = () => {
           See clean alternatives
         </button>
       </div>
+
+      {/* Remaining scans banner */}
+      {showBanner && scansRemaining !== undefined && (
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+120px)] z-[60] px-4 animate-fade-in">
+          <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+            <div>
+              <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+                You're on Pure Free
+              </p>
+              <p className="text-[12px] text-muted-foreground">
+                {scansRemaining === 0
+                  ? "No scans left today"
+                  : `${scansRemaining} scan${scansRemaining === 1 ? "" : "s"} left today`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate("/paywall")}
+                className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground active:opacity-90"
+              >
+                Upgrade
+              </button>
+              <button onClick={() => setShowBanner(false)} className="text-muted-foreground active:text-foreground">
+                <X size={16} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
