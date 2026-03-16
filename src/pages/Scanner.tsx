@@ -72,13 +72,19 @@ const Scanner = () => {
   };
 
   const handleDemoScan = () => {
+    if (blocked) {
+      navigate("/paywall");
+      return;
+    }
     navigateWithScan(DEMO_DATA);
   };
 
   const handleBarcodeLookup = async () => {
     if (!barcode.trim()) return;
-    setLoading(true);
-    setNotFound(false);
+    if (blocked) {
+      navigate("/paywall");
+      return;
+    }
     try {
       if (!canScan()) {
         navigate("/paywall");
