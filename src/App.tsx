@@ -16,8 +16,9 @@ const queryClient = new QueryClient();
 
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const isScanner = location.pathname === "/scanner";
   return (
-    <div key={location.pathname} className="animate-page-in">
+    <div key={location.pathname} className={isScanner ? "" : "animate-page-in"}>
       <Routes location={location}>
         <Route path="/" element={<Index />} />
         <Route path="/scanner" element={<Scanner />} />
