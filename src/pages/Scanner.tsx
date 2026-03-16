@@ -60,6 +60,7 @@ const Scanner = () => {
     try {
       const product = await fetchProduct(barcode.trim());
       if (product) {
+        addScanToHistory(product);
         navigate("/result", { state: { product } });
       } else {
         setNotFound(true);
