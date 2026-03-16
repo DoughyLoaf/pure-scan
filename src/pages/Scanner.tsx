@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
+import { addScanToHistory } from "@/lib/scan-history";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
@@ -48,6 +49,7 @@ const Scanner = () => {
   const [manualIngredients, setManualIngredients] = useState("");
 
   const handleDemoScan = () => {
+    addScanToHistory(DEMO_DATA);
     navigate("/result", { state: { product: DEMO_DATA } });
   };
 
@@ -58,6 +60,7 @@ const Scanner = () => {
     try {
       const product = await fetchProduct(barcode.trim());
       if (product) {
+        addScanToHistory(product);
         navigate("/result", { state: { product } });
       } else {
         setNotFound(true);
@@ -79,6 +82,7 @@ const Scanner = () => {
       ingredientsRaw: manualIngredients,
       flagged,
     };
+    addScanToHistory(product);
     navigate("/result", { state: { product } });
   };
 
