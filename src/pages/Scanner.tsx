@@ -225,13 +225,22 @@ const Scanner = () => {
       {/* Demo button */}
       {!showManual && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
-          <button
-            onClick={handleDemoScan}
-            disabled={showPulse}
-            className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-70"
-          >
-            Demo: Scan a product
-          </button>
+          {blocked ? (
+            <button
+              onClick={() => navigate("/paywall")}
+              className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors"
+            >
+              No scans left — Upgrade
+            </button>
+          ) : (
+            <button
+              onClick={handleDemoScan}
+              disabled={showPulse}
+              className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-70"
+            >
+              Demo: Scan a product
+            </button>
+          )}
         </div>
       )}
     </div>
