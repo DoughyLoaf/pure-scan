@@ -141,23 +141,24 @@ const Result = () => {
   const location = useLocation();
   const [showBanner, setShowBanner] = useState(false);
   const [ready, setReady] = useState(false);
+  const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
 
-  const locationState = location.state as { product?: ProductResult; scansRemaining?: number } | null;
+  const locationState = location.state as { product?: ProductResult } | null;
   const data = locationState?.product ?? DEMO_DATA;
-  const scansRemaining = locationState?.scansRemaining;
 
   useEffect(() => {
-    // Brief delay to let skeleton show, then reveal
     const t = setTimeout(() => setReady(true), 200);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    if (!isPro() && scansRemaining !== undefined && scansRemaining < FREE_DAILY_LIMIT_VALUE) {
+    const remaining = getScansRemaining();
+    setScansRemaining(remaining);
+    if (!isPro() && remaining < FREE_DAILY_LIMIT_VALUE) {
       const timer = setTimeout(() => setShowBanner(true), 800);
       return () => clearTimeout(timer);
     }
-  }, [scansRemaining]);
+  }, []);
 
   if (!ready) return <ResultSkeleton />;
 
