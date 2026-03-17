@@ -298,11 +298,11 @@ const Scanner = () => {
         </button>
 
         {cameraError ? (
-          <p className="mt-8 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+          <p className="mt-5 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
         ) : scannerStarted ? (
-          <p className="mt-8 text-sm font-medium text-white/70">Point at any barcode</p>
+          <p className="mt-5 text-sm text-white/50">Point at any barcode</p>
         ) : (
-          <p className="mt-8 text-sm font-medium text-white/70">Tap the viewfinder to start the camera</p>
+          <p className="mt-5 text-xs text-white/40">Tap the viewfinder to start the camera</p>
         )}
         <button
           onClick={() => { setShowManual(true); setNotFound(false); }}
