@@ -86,11 +86,181 @@ const getUserFlaggedCategories = (): Set<string> => {
   }
 };
 
+const getRiskLevel = (category: string): { label: string; color: string; bg: string } => {
+  switch (category) {
+    case "Seed Oil":
+    case "Artificial Sweetener":
+      return { label: "High Risk", color: "hsl(0, 72%, 51%)", bg: "hsl(0, 72%, 51%, 0.1)" };
+    case "Preservative":
+    case "Artificial Dye":
+      return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
+    default:
+      return { label: "Low-Medium", color: "hsl(38, 70%, 55%)", bg: "hsl(38, 70%, 55%, 0.1)" };
+  }
+};
+
+const LEARN_MORE: Record<string, string[]> = {
+  "Canola Oil": [
+    "High in omega-6 fatty acids which compete with anti-inflammatory omega-3s.",
+    "Undergoes heavy chemical processing including deodorization at high temperatures.",
+    "Studies link excess omega-6 consumption to chronic inflammatory conditions.",
+  ],
+  "Soybean Oil": [
+    "Contains roughly 54% omega-6 linoleic acid, one of the highest among cooking oils.",
+    "Animal studies show it may affect gene expression related to obesity and diabetes.",
+    "Often extracted using hexane, a petroleum-derived chemical solvent.",
+  ],
+  "Sunflower Oil": [
+    "Contains up to 65% omega-6 fatty acids, promoting an inflammatory imbalance.",
+    "High heat processing creates oxidized lipids linked to cardiovascular damage.",
+    "Widely used in processed foods due to its low cost, not its health benefits.",
+  ],
+  "Corn Oil": [
+    "Omega-6 to omega-3 ratio can exceed 40:1, far from the ideal 4:1 or lower.",
+    "Predominantly sourced from genetically modified corn crops.",
+    "Refining process strips away naturally occurring antioxidants and nutrients.",
+  ],
+  "Cottonseed Oil": [
+    "Derived from cotton, a crop heavily treated with pesticides not intended for food use.",
+    "Contains cyclopropenoid fatty acids which may interfere with fatty acid metabolism.",
+    "Historically classified as industrial waste before being repurposed for food processing.",
+  ],
+  "Vegetable Oil": [
+    "Typically a blend of soybean, corn, and canola oils high in omega-6.",
+    "The generic label obscures what specific oils are actually used.",
+    "Undergoes extensive refining that removes nutrients and creates trans fat traces.",
+  ],
+  "Rapeseed Oil": [
+    "Canola is a cultivar of rapeseed bred to reduce erucic acid content.",
+    "Processing involves high heat and chemical solvents that degrade beneficial compounds.",
+    "Studies show high omega-6 intake from seed oils correlates with increased inflammation markers.",
+  ],
+  "Red 40": [
+    "Derived from petroleum; banned or restricted in several European countries.",
+    "Multiple studies link it to hyperactivity and behavioral issues in children.",
+    "The Center for Science in the Public Interest has petitioned for its ban since 2008.",
+  ],
+  "Yellow 5": [
+    "One of the most commonly used artificial dyes in the United States.",
+    "Requires a warning label in the EU due to links to childhood hyperactivity.",
+    "May cause allergic-type reactions, particularly in aspirin-sensitive individuals.",
+  ],
+  "Yellow 6": [
+    "Petroleum-derived dye that has been linked to adrenal tumors in animal studies.",
+    "Requires a hyperactivity warning label on foods sold in the European Union.",
+    "Commonly found in snacks, cereals, and beverages marketed to children.",
+  ],
+  "Blue 1": [
+    "Can cross the blood-brain barrier, raising concerns about neurological effects.",
+    "Limited long-term safety data available despite widespread use.",
+    "Has been shown to cause chromosomal damage in some in-vitro studies.",
+  ],
+  "Blue 2": [
+    "Derived from synthetic indigo and linked to brain tumors in male rats.",
+    "Used primarily in candies, beverages, and pet foods.",
+    "The European Food Safety Authority has called for further safety evaluations.",
+  ],
+  "Red 3": [
+    "Banned in cosmetics by the FDA in 1990 due to thyroid tumor links, but still allowed in food.",
+    "California signed a law in 2023 to ban Red 3 in food by 2027.",
+    "Acts as a xenoestrogen, potentially disrupting hormonal balance.",
+  ],
+  "Green 3": [
+    "One of the least studied synthetic dyes currently permitted in food.",
+    "Animal studies have shown links to bladder and testes tumors.",
+    "Rarely used but still present in some candies and beverages.",
+  ],
+  "BHA": [
+    "Classified as 'reasonably anticipated to be a human carcinogen' by the National Toxicology Program.",
+    "Acts as an endocrine disruptor, potentially affecting thyroid and reproductive hormones.",
+    "Banned as a food additive in Japan and restricted in the EU.",
+  ],
+  "BHT": [
+    "Structurally similar to BHA with comparable endocrine-disrupting concerns.",
+    "Can accumulate in body fat and organs with prolonged exposure.",
+    "Some studies link it to developmental and behavioral effects in animal models.",
+  ],
+  "TBHQ": [
+    "Derived from butane; the FDA limits its concentration to 0.02% of oil content.",
+    "Studies suggest it may impair immune response to infections and vaccines.",
+    "Linked to vision disturbances and liver enlargement at higher doses in animal studies.",
+  ],
+  "Sodium Benzoate": [
+    "When combined with ascorbic acid (vitamin C), can form benzene—a known carcinogen.",
+    "Has been shown to increase hyperactivity in children in combination with artificial colors.",
+    "May damage mitochondrial DNA according to research from the University of Sheffield.",
+  ],
+  "Potassium Sorbate": [
+    "In vitro studies show it can be genotoxic to human lymphocytes at high concentrations.",
+    "Generally recognized as safe at low levels, but cumulative exposure is a concern.",
+    "May cause skin and respiratory allergic reactions in sensitive individuals.",
+  ],
+  "Aspartame": [
+    "Classified as 'possibly carcinogenic to humans' (Group 2B) by IARC in 2023.",
+    "Breaks down into phenylalanine, aspartic acid, and methanol during digestion.",
+    "Some studies suggest it may disrupt gut microbiome composition and glucose tolerance.",
+  ],
+  "Sucralose": [
+    "Research indicates it may reduce beneficial gut bacteria by up to 50%.",
+    "Heating sucralose can produce chloropropanols, a potentially toxic compound class.",
+    "Despite being marketed as 'made from sugar,' it undergoes extensive chemical chlorination.",
+  ],
+  "Saccharin": [
+    "Was nearly banned in the 1970s after studies linked it to bladder cancer in rats.",
+    "More recent research suggests it may alter gut microbiome composition.",
+    "500 times sweeter than sugar, which may condition preference for intensely sweet tastes.",
+  ],
+  "Acesulfame Potassium": [
+    "Contains methylene chloride, a potential carcinogen, as a processing solvent.",
+    "Often used in combination with other artificial sweeteners to mask bitter aftertaste.",
+    "Limited independent long-term studies exist; most safety data comes from manufacturer-funded research.",
+  ],
+  "Maltodextrin": [
+    "Has a glycemic index of 85–105, often higher than pure table sugar (65).",
+    "May suppress the growth of beneficial gut probiotics while promoting harmful bacteria.",
+    "Commonly derived from genetically modified corn through enzymatic processing.",
+  ],
+  "Carrageenan": [
+    "The Cornucopia Institute petitioned the FDA to ban it from food due to inflammatory effects.",
+    "Even food-grade carrageenan may degrade to carcinogenic poligeenan during digestion.",
+    "Widely used as a thickener in plant-based milks, deli meats, and infant formula.",
+  ],
+  "Modified Starch": [
+    "Chemically or enzymatically treated to change texture, stability, or digestibility.",
+    "Some modifications involve propylene oxide or hydrochloric acid treatment.",
+    "Heavily processed variants may spike blood sugar similarly to refined sugars.",
+  ],
+  "Artificial Flavor": [
+    "A single 'artificial flavor' can contain dozens of undisclosed chemical compounds.",
+    "Manufacturers are not required to disclose the specific chemicals used.",
+    "Designed to create hyper-palatable taste profiles that may encourage overconsumption.",
+  ],
+  "Natural Flavor": [
+    "Can contain up to 100 different chemicals including solvents and preservatives.",
+    "The 'natural' label only requires the source to be plant, animal, or mineral-derived.",
+    "Often as heavily processed as artificial flavors despite the healthier-sounding name.",
+  ],
+};
+
+const getLearnMore = (name: string): string[] => {
+  return LEARN_MORE[name] || [
+    "This ingredient has been flagged due to potential health concerns.",
+    "Research suggests limiting consumption of ultra-processed additives.",
+    "Check independent sources for the latest safety assessments.",
+  ];
+};
+
 const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngredient; flaggedCategories: Set<string> }) => {
   const isFlaggedForUser = flaggedCategories.has(ingredient.category);
+  const [expanded, setExpanded] = useState(false);
+  const risk = getRiskLevel(ingredient.category);
+  const learnMore = getLearnMore(ingredient.name);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <button
+      onClick={() => setExpanded(!expanded)}
+      className="w-full text-left rounded-2xl border border-border bg-card p-4 transition-colors active:bg-muted/50"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
@@ -124,7 +294,54 @@ const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngred
           {ingredient.labelText}
         </p>
       </div>
-    </div>
+
+      {/* Expandable detail section */}
+      <div
+        className="overflow-hidden transition-all duration-300 ease-out"
+        style={{
+          maxHeight: expanded ? "400px" : "0px",
+          opacity: expanded ? 1 : 0,
+          marginTop: expanded ? "12px" : "0px",
+        }}
+      >
+        <div className="border-t border-border pt-3 space-y-3">
+          {/* Risk Level Badge */}
+          <div className="flex items-center gap-2">
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+              style={{ backgroundColor: risk.bg, color: risk.color }}
+            >
+              {risk.label}
+            </span>
+            <ChevronDown
+              size={14}
+              strokeWidth={2}
+              className="text-muted-foreground rotate-180 transition-transform"
+            />
+          </div>
+
+          {/* Learn More Bullets */}
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Learn more
+            </p>
+            <ul className="space-y-1.5">
+              {learnMore.map((point, i) => (
+                <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-muted-foreground">
+                  <span className="mt-1.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Source line */}
+          <p className="text-[11px] text-muted-foreground/60 italic">
+            Based on peer-reviewed research
+          </p>
+        </div>
+      </div>
+    </button>
   );
 };
 
