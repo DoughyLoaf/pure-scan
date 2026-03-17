@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, ChevronDown, Info, X, ScanLine, Leaf } from "lucide-react";
 import { isPro, getScansRemaining, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
@@ -130,8 +130,6 @@ const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngred
 
 const MethodologySection = () => {
   const [open, setOpen] = useState(false);
-  
-
   return (
     <div className="mt-5 w-full">
       <button
@@ -168,6 +166,24 @@ const MethodologySection = () => {
           </li>
         </ul>
       </div>
+    </div>
+  );
+};
+
+const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className="relative h-20 w-20 shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
+      {!loaded && (
+        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%]" />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
     </div>
   );
 };
@@ -238,11 +254,7 @@ const Result = () => {
       <div className="mt-6 flex flex-col items-center px-6">
         <div className="flex items-center gap-4 w-full justify-center">
           {data.imageUrl ? (
-            <img
-              src={data.imageUrl}
-              alt={data.name}
-              className="h-20 w-20 shrink-0 rounded-2xl border border-border object-cover bg-muted"
-            />
+            <ProductImage src={data.imageUrl} alt={data.name} />
           ) : (
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted">
               <Leaf size={28} strokeWidth={1.5} className="text-muted-foreground" />
