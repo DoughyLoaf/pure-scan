@@ -234,12 +234,10 @@ const Scanner = () => {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#0a0a0a]">
-      {/* Scan-complete pulse overlay */}
       {showPulse && (
         <div className="absolute inset-0 z-[100] animate-scan-pulse bg-primary/40 pointer-events-none" />
       )}
 
-      {/* Loading overlay while fetching product after camera scan */}
       {scanLoading && (
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <Loader2 size={32} className="animate-spin text-primary" />
@@ -247,34 +245,45 @@ const Scanner = () => {
         </div>
       )}
 
-      {/* Top bar */}
       <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
         <span className="text-sm font-semibold tracking-tight text-white/90" style={{ fontFamily: "var(--font-display)" }}>
           Pure<span className="text-primary">.</span> Scanner
         </span>
         <button
           onClick={() => setTorch(!torch)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors active:bg-white/20"
+          disabled={!scannerStarted}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors active:bg-white/20 disabled:opacity-40"
         >
           {torch ? <Flashlight size={20} strokeWidth={1.8} /> : <FlashlightOff size={20} strokeWidth={1.8} />}
         </button>
       </div>
 
-      {/* Viewfinder area with live camera */}
       <div className="flex flex-1 flex-col items-center justify-center px-10">
-        <div className="relative aspect-square w-full max-w-[260px]">
+        <button
+          type="button"
+          onClick={() => void startScanner()}
+          disabled={scannerStarted || blocked || scanLoading}
+          className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-sm disabled:cursor-default"
+          aria-label="Start camera scanner"
+        >
           <CornerBrackets />
-
-          {/* Live camera feed */}
           <video
             ref={videoRef}
-            className="absolute inset-0 h-full w-full rounded-sm object-cover"
+            className="absolute inset-0 h-full w-full object-cover"
             playsInline
             muted
             autoPlay
           />
 
-          {/* Scan line overlay */}
+          {!scannerStarted && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55 px-6 text-center">
+              <span className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                Tap to start camera
+              </span>
+              <p className="mt-3 text-xs text-white/70">Camera permission must start from a tap on some phones.</p>
+            </div>
+          )}
+
           <div className="absolute inset-x-3 inset-y-3 overflow-hidden pointer-events-none">
             <div
               className="absolute left-0 right-0 h-[2px] animate-scan-line"
@@ -285,12 +294,14 @@ const Scanner = () => {
             />
           </div>
           <div className="absolute inset-0 rounded-sm bg-white/[0.02] pointer-events-none" />
-        </div>
+        </button>
 
         {cameraError ? (
-          <p className="mt-8 text-sm font-medium text-red-400 text-center px-4">{cameraError}</p>
-        ) : (
+          <p className="mt-8 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+        ) : scannerStarted ? (
           <p className="mt-8 text-sm font-medium text-white/70">Point at any barcode</p>
+        ) : (
+          <p className="mt-8 text-sm font-medium text-white/70">Tap the viewfinder to start the camera</p>
         )}
         <button
           onClick={() => { setShowManual(true); setNotFound(false); }}
