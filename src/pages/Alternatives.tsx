@@ -337,9 +337,20 @@ const phDotColor = (ph: number) => {
   return "hsl(var(--muted-foreground))";
 };
 
-const WaterComparisonCard = ({ brand, isScanned }: { brand: WaterBrand; isScanned: boolean }) => (
-  <div
-    className="flex w-[160px] shrink-0 snap-start flex-col rounded-2xl border bg-card p-4"
+const WaterComparisonCard = ({
+  brand,
+  brandKey,
+  isScanned,
+  onTap,
+}: {
+  brand: WaterBrand;
+  brandKey: string;
+  isScanned: boolean;
+  onTap: () => void;
+}) => (
+  <button
+    onClick={onTap}
+    className="flex w-[160px] shrink-0 snap-start flex-col rounded-2xl border bg-card p-4 text-left transition-all duration-150 active:scale-95 active:bg-water/5"
     style={{
       borderColor: isScanned ? "hsl(var(--water))" : "hsl(var(--border))",
       borderWidth: isScanned ? "2px" : "1px",
@@ -402,13 +413,43 @@ const WaterComparisonCard = ({ brand, isScanned }: { brand: WaterBrand; isScanne
         </>
       )}
     </div>
-  </div>
+
+    {/* Chevron affordance */}
+    <div className="mt-2 flex justify-end">
+      <ChevronRight size={14} className="text-water" />
+    </div>
+  </button>
 );
+
+const HINT_KEY = "pure_water_compare_hint_seen";
 
 const WaterComparison = ({ scannedBrandName }: { scannedBrandName?: string }) => {
   const navigate = useNavigate();
-  const brands = WATER_COMPARE_KEYS.map((key) => WATER_DATABASE[key]).filter(Boolean);
+  const brands = WATER_COMPARE_KEYS.map((key) => ({ key, brand: WATER_DATABASE[key] })).filter(
+    (b) => !!b.brand
+  );
   const scannedLower = scannedBrandName?.toLowerCase() ?? "";
+
+  const [showHint, setShowHint] = useState(false);
+  useEffect(() => {
+    if (!localStorage.getItem(HINT_KEY)) {
+      setShowHint(true);
+      localStorage.setItem(HINT_KEY, "1");
+    }
+  }, []);
+
+  const handleTap = (brandKey: string, brand: WaterBrand, isScanned: boolean) => {
+    if (isScanned) {
+      navigate(-1);
+    } else {
+      navigate("/water-report", {
+        state: {
+          product: { name: brand.name, brand: brand.name },
+          waterBrand: WATER_DATABASE[brandKey],
+        },
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -431,9 +472,20 @@ const WaterComparison = ({ scannedBrandName }: { scannedBrandName?: string }) =>
 
         <div className="mt-5 -mx-5 sm:-mx-6 px-5 sm:px-6 overflow-x-auto">
           <div className="flex gap-3 snap-x snap-mandatory pb-4" style={{ scrollSnapType: "x mandatory" }}>
-            {brands.map((brand) => {
-              const isScanned = !!scannedLower && (scannedLower.includes(brand.name.toLowerCase()) || brand.name.toLowerCase().includes(scannedLower));
-              return <WaterComparisonCard key={brand.name} brand={brand} isScanned={isScanned} />;
+            {brands.map(({ key, brand }) => {
+              const isScanned =
+                !!scannedLower &&
+                (scannedLower.includes(brand.name.toLowerCase()) ||
+                  brand.name.toLowerCase().includes(scannedLower));
+              return (
+                <WaterComparisonCard
+                  key={brand.name}
+                  brand={brand}
+                  brandKey={key}
+                  isScanned={isScanned}
+                  onTap={() => handleTap(key, brand, isScanned)}
+                />
+              );
             })}
           </div>
         </div>
@@ -441,6 +493,12 @@ const WaterComparison = ({ scannedBrandName }: { scannedBrandName?: string }) =>
         <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
           Showing top-rated water brands by source quality and mineral profile
         </p>
+
+        {showHint && (
+          <p className="mt-1.5 text-center text-[11px] text-muted-foreground/40">
+            Tap any brand to see the full water report
+          </p>
+        )}
       </div>
     </div>
   );
