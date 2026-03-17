@@ -327,11 +327,197 @@ const AlternativeCard = ({ alt }: { alt: Alternative }) => (
   </div>
 );
 
+// ── Water Comparison ───────────────────────────────────────────────
+const WATER_COMPARE_KEYS = ["icelandic glacial", "waiakea", "fiji", "evian", "liquid death"] as const;
+
+const phDotColor = (ph: number) => {
+  if (ph < 6.5) return "hsl(38, 92%, 50%)";
+  if (ph > 7.5) return "hsl(var(--water))";
+  return "hsl(var(--muted-foreground))";
+};
+
+const WaterComparisonCard = ({ brand, isScanned }: { brand: WaterBrand; isScanned: boolean }) => (
+  <div
+    className="flex w-[160px] shrink-0 snap-start flex-col rounded-2xl border bg-card p-4"
+    style={{
+      borderColor: isScanned ? "hsl(var(--water))" : "hsl(var(--border))",
+      borderWidth: isScanned ? "2px" : "1px",
+    }}
+  >
+    {isScanned && (
+      <span className="mb-2 self-start rounded-full bg-water/10 px-2.5 py-0.5 text-[10px] font-semibold text-water">
+        Your scan
+      </span>
+    )}
+    <p className="text-[14px] font-bold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+      {brand.name}
+    </p>
+    <span className="mt-1.5 self-start rounded-full bg-water/10 px-2.5 py-0.5 text-[10px] font-semibold text-water">
+      {brand.type}
+    </span>
+
+    {/* pH */}
+    <div className="mt-3 flex items-center gap-1.5">
+      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: phDotColor(brand.ph) }} />
+      <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+        {brand.ph.toFixed(1)}
+      </span>
+      <span className="text-[10px] text-muted-foreground">pH</span>
+    </div>
+
+    {/* TDS */}
+    <div className="mt-2 flex items-baseline gap-1">
+      <span className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+        {brand.tds_mg_per_liter}
+      </span>
+      <span className="text-[10px] text-muted-foreground">mg/L TDS</span>
+    </div>
+
+    {/* Minerals */}
+    <div className="mt-3 space-y-1 border-t border-border pt-2">
+      {[
+        { label: "Ca", value: brand.minerals.calcium },
+        { label: "Mg", value: brand.minerals.magnesium },
+        { label: "Na", value: brand.minerals.sodium },
+      ].map((m) => (
+        <div key={m.label} className="flex items-center justify-between text-[11px]">
+          <span className="text-muted-foreground">{m.label}</span>
+          <span className="font-medium tabular-nums">{m.value}</span>
+        </div>
+      ))}
+    </div>
+
+    {/* PFAS */}
+    <div className="mt-3 flex items-center gap-1 border-t border-border pt-2 text-[10px]">
+      {brand.pfas_tested ? (
+        <>
+          <CheckCircle2 size={12} className="text-primary" />
+          <span className="font-medium text-primary">PFAS tested</span>
+        </>
+      ) : (
+        <>
+          <Minus size={12} className="text-muted-foreground" />
+          <span className="text-muted-foreground">PFAS n/a</span>
+        </>
+      )}
+    </div>
+  </div>
+);
+
+const WaterComparison = ({ scannedBrandName }: { scannedBrandName?: string }) => {
+  const navigate = useNavigate();
+  const brands = WATER_COMPARE_KEYS.map((key) => WATER_DATABASE[key]).filter(Boolean);
+  const scannedLower = scannedBrandName?.toLowerCase() ?? "";
+
+  return (
+    <div className="min-h-screen bg-background pb-28">
+      <div className="flex items-center gap-3 px-5 pt-5">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
+        >
+          <ArrowLeft size={20} strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <div className="mt-6 px-5 sm:px-6">
+        <div className="flex items-center gap-2">
+          <Droplets size={20} className="text-water" />
+          <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            Compare water brands
+          </h1>
+        </div>
+
+        <div className="mt-5 -mx-5 sm:-mx-6 px-5 sm:px-6 overflow-x-auto">
+          <div className="flex gap-3 snap-x snap-mandatory pb-4" style={{ scrollSnapType: "x mandatory" }}>
+            {brands.map((brand) => {
+              const isScanned = !!scannedLower && (scannedLower.includes(brand.name.toLowerCase()) || brand.name.toLowerCase().includes(scannedLower));
+              return <WaterComparisonCard key={brand.name} brand={brand} isScanned={isScanned} />;
+            })}
+          </div>
+        </div>
+
+        <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
+          Showing top-rated water brands by source quality and mineral profile
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ── Main Component ─────────────────────────────────────────────────
 const Alternatives = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { product?: ProductResult } | null;
+  const locationState = location.state as { product?: ProductResult; waterMode?: boolean; scannedBrandName?: string } | null;
   const product = locationState?.product ?? null;
+  const waterMode = locationState?.waterMode ?? false;
+
+  if (waterMode) {
+    return <WaterComparison scannedBrandName={locationState?.scannedBrandName ?? product?.brand} />;
+  }
+
+  if (!product) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 pb-28">
+        <ScanLine size={48} className="text-muted-foreground/40" strokeWidth={1.5} />
+        <h2
+          className="mt-4 text-lg font-semibold"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          No product scanned
+        </h2>
+        <p className="mt-2 text-center text-sm text-muted-foreground">
+          Scan a product first to see clean alternatives.
+        </p>
+        <button
+          onClick={() => navigate("/scanner")}
+          className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors"
+        >
+          Go to Scanner
+        </button>
+      </div>
+    );
+  }
+
+  const alternatives = getAlternatives(product);
+
+  return (
+    <div className="min-h-screen bg-background pb-28">
+      <div className="flex items-center gap-3 px-5 pt-5">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
+        >
+          <ArrowLeft size={20} strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <div className="mt-6 px-5 sm:px-6">
+        <h1
+          className="text-lg font-semibold leading-snug"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          Cleaner alternatives to{" "}
+          <span className="text-primary">{product.name}</span>
+        </h1>
+
+        <div className="mt-5 sm:mt-6 flex flex-col gap-3">
+          {alternatives.map((alt) => (
+            <AlternativeCard key={alt.name} alt={alt} />
+          ))}
+        </div>
+
+        <div className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <Info size={13} strokeWidth={1.8} />
+          Data sourced from Open Food Facts
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Alternatives;
 
   if (!product) {
     return (
