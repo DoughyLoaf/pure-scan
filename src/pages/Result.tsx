@@ -268,12 +268,21 @@ const Result = () => {
 
       {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+68px)] pt-4">
-        <button
-          onClick={() => navigate("/alternatives", { state: { product: data } })}
-          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
-        >
-          See clean alternatives
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate("/scanner")}
+            className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-3.5 text-sm font-semibold text-foreground transition-colors active:bg-muted"
+          >
+            <ScanLine size={18} strokeWidth={2} />
+            Scan another
+          </button>
+          <button
+            onClick={() => navigate("/alternatives", { state: { product: data } })}
+            className="flex-1 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
+          >
+            See clean alternatives
+          </button>
+        </div>
       </div>
 
       {/* Remaining scans banner */}
