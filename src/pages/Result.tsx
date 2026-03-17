@@ -248,7 +248,7 @@ const Result = () => {
       {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+68px)] pt-4">
         <button
-          onClick={() => navigate("/alternatives")}
+          onClick={() => navigate("/alternatives", { state: { product: data } })}
           className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
         >
           See clean alternatives
