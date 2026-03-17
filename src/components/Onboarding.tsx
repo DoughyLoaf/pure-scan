@@ -111,12 +111,11 @@ const Onboarding = () => {
         <div
           className="flex h-full transition-transform duration-300 ease-out"
           style={{
-            width: "300%",
-            transform: `translateX(-${current * (100 / 3)}%)`,
+            transform: `translateX(-${current * 100}vw)`,
           }}
         >
           {/* Slide 1 */}
-          <div className="flex h-full w-1/3 flex-col items-center justify-center px-8">
+          <div className="flex h-full flex-col items-center justify-center px-8" style={{ minWidth: "100vw" }}>
             <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-accent mb-6">
               <ScanLine className="text-primary" size={44} strokeWidth={1.6} />
             </div>
@@ -134,7 +133,7 @@ const Onboarding = () => {
           </div>
 
           {/* Slide 2 */}
-          <div className="flex h-full w-1/3 flex-col items-center justify-center px-8">
+          <div className="flex h-full flex-col items-center justify-center px-8" style={{ minWidth: "100vw" }}>
             <div className="mb-6 w-full max-w-xs flex flex-col gap-3">
               {FLAG_ROWS.map((row) => (
                 <div
@@ -162,7 +161,7 @@ const Onboarding = () => {
           </div>
 
           {/* Slide 3 */}
-          <div className="flex h-full w-1/3 flex-col items-center justify-center px-8">
+          <div className="flex h-full flex-col items-center justify-center px-8" style={{ minWidth: "100vw" }}>
             <div className="mb-6">
               <ScoreRingPreview />
             </div>
