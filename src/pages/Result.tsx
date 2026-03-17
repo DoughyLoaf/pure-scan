@@ -181,7 +181,27 @@ const Result = () => {
         >
           <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
-        <button className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted">
+        <button
+          onClick={async () => {
+            const flaggedCount = data.flagged.length;
+            const firstName = flaggedCount > 0 ? data.flagged[0].name : "";
+            const shareText = `${data.name} scored ${data.score}/100 on Pure. ${flaggedCount} ingredient${flaggedCount === 1 ? "" : "s"} flagged${firstName ? ` including ${firstName}` : ""}. Check what's in your food 👇`;
+            const shareData = {
+              title: `Pure Score — ${data.name}`,
+              text: shareText,
+              url: "https://getpure.app",
+            };
+            if (navigator.share) {
+              try { await navigator.share(shareData); } catch {}
+            } else {
+              try {
+                await navigator.clipboard.writeText(`${shareText} https://getpure.app`);
+                toast({ title: "Copied to clipboard" });
+              } catch {}
+            }
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
+        >
           <Share2 size={18} strokeWidth={1.8} />
         </button>
       </div>
