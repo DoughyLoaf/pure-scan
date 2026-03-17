@@ -339,6 +339,28 @@ const Index = () => {
         </button>
       </div>
 
+      {/* Water Scan CTA */}
+      <button
+        onClick={() => navigate("/scanner", { state: { waterMode: true } })}
+        className="mt-3 flex w-full items-center gap-3 rounded-2xl p-3.5 sm:p-4 text-left transition-colors active:opacity-80"
+        style={{
+          backgroundColor: "rgba(14, 165, 233, 0.05)",
+          border: "0.5px solid rgba(14, 165, 233, 0.3)",
+        }}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(var(--water) / 0.1)" }}>
+          <Droplets size={18} className="text-water" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-medium" style={{ fontFamily: "var(--font-display)" }}>
+            Check your water
+          </p>
+          <p className="text-[12px] text-muted-foreground">
+            Scan any water bottle for a full quality report
+          </p>
+        </div>
+        <ChevronRight size={16} className="shrink-0 text-water" strokeWidth={2} />
+      </button>
       {/* Stats Row */}
       {totalScanned > 0 && (
         <div className="mt-4 sm:mt-5 grid grid-cols-2 gap-2 sm:gap-3">
