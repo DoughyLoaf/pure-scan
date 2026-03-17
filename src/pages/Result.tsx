@@ -4,6 +4,7 @@ import { ArrowLeft, Share2, ChevronDown, Info, X } from "lucide-react";
 import { isPro, getScansRemaining, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 import ResultSkeleton from "@/components/ResultSkeleton";
+import { toast } from "@/hooks/use-toast";
 
 const DEMO_DATA: ProductResult = {
   name: "Lay's Classic Chips",
