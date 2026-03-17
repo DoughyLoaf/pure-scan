@@ -93,6 +93,9 @@ const getRiskLevel = (category: string): { label: string; color: string; bg: str
       return { label: "High Risk", color: "hsl(0, 72%, 51%)", bg: "hsl(0, 72%, 51%, 0.1)" };
     case "Preservative":
     case "Artificial Dye":
+    case "Added Sugar":
+      return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
+    case "Emulsifier":
       return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
     default:
       return { label: "Low-Medium", color: "hsl(38, 70%, 55%)", bg: "hsl(38, 70%, 55%, 0.1)" };
