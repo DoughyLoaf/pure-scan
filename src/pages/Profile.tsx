@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import { getDailyScansUsed, isPro, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
-import { ChevronRight, Clock, Crown, Leaf, Shield, Trash2 } from "lucide-react";
+import { ChevronRight, Clock, Crown, Database, Leaf, Shield, Trash2 } from "lucide-react";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
 
 const DIETARY_OPTIONS = [
@@ -89,6 +89,16 @@ const Profile = () => {
     localStorage.removeItem("pure_scan_history");
     window.location.reload();
   };
+
+  const clearProductCache = () => {
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith("pure_product_"));
+    keys.forEach((k) => localStorage.removeItem(k));
+    setCacheCount(0);
+  };
+
+  const [cacheCount, setCacheCount] = useState(() =>
+    Object.keys(localStorage).filter((k) => k.startsWith("pure_product_")).length
+  );
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -207,6 +217,19 @@ const Profile = () => {
             <button className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted">
               <span>Terms of Service</span>
               <ChevronRight size={16} className="text-muted-foreground" />
+            </button>
+            <div className="mx-4 border-t border-border" />
+            <button
+              onClick={clearProductCache}
+              className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted"
+            >
+              <span className="flex items-center gap-2">
+                <Database size={14} className="text-muted-foreground" />
+                Clear product cache
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {cacheCount} {cacheCount === 1 ? "product" : "products"}
+              </span>
             </button>
           </div>
         </div>
