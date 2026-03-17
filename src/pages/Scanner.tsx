@@ -186,17 +186,21 @@ const Scanner = () => {
   }, [blocked, handleDetectedBarcode, scannerStarted, showManual, stopScanner]);
 
   const navigateWithScan = (product: ProductResult) => {
-    if (!canScan()) {
-      navigate("/paywall");
-      return;
-    }
+    if (!canScan()) { navigate("/paywall"); return; }
     const { remaining } = recordScan();
     addScanToHistory(product);
-
     setShowPulse(true);
-    setTimeout(() => {
-      navigate("/result", { state: { product, scansRemaining: remaining } });
-    }, 350);
+    const categories = (product as any).categoriesRaw ?? "";
+    if (isWaterProduct(product.name, categories)) {
+      const waterBrand = findWaterBrand(product.name, product.brand);
+      setTimeout(() => {
+        navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
+      }, 350);
+    } else {
+      setTimeout(() => {
+        navigate("/result", { state: { product, scansRemaining: remaining } });
+      }, 350);
+    }
   };
 
 
