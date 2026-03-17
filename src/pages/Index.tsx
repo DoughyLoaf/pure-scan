@@ -130,6 +130,11 @@ const StreakTracker = ({ history }: { history: ScanHistoryEntry[] }) => {
 const Index = () => {
   const navigate = useNavigate();
   const history = getScanHistory();
+  const onboardingComplete = localStorage.getItem("pure_onboarding_complete") === "true";
+
+  if (!onboardingComplete) {
+    return <Onboarding />;
+  }
 
   const totalScanned = history.length;
   const totalFlagged = useMemo(
