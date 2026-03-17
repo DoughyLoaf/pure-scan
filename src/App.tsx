@@ -41,6 +41,7 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/result" element={<Result />} />
+        <Route path="/water-report" element={<WaterReport />} />
         <Route path="/alternatives" element={<Alternatives />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/paywall" element={<Paywall />} />
