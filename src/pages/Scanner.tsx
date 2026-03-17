@@ -240,7 +240,7 @@ const Scanner = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[#0a0a0a]">
+    <div className="fixed inset-x-0 top-0 bottom-16 z-40 flex flex-col bg-[#0a0a0a]">
       {showPulse && (
         <div className="absolute inset-0 z-[100] animate-scan-pulse bg-primary/40 pointer-events-none" />
       )}
