@@ -474,7 +474,7 @@ const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <div className="relative h-20 w-20 shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
+    <div className="relative h-[72px] w-[72px] shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
       {!loaded && (
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%]" />
       )}
