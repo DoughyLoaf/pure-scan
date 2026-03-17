@@ -347,7 +347,7 @@ const WaterReport = () => {
       </div>
 
       {/* ─── Bottom Bar ─── */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-6 py-4 z-40">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-6 py-4 z-[60]">
         <div className="flex gap-3 max-w-lg mx-auto">
           <button
             onClick={() => navigate("/scanner")}
