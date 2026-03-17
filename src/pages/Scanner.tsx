@@ -53,6 +53,7 @@ const Scanner = () => {
   const [blocked, setBlocked] = useState(!canScan());
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
+  const [scannerStarted, setScannerStarted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -63,64 +64,40 @@ const Scanner = () => {
     setBlocked(!canScan());
   }, []);
 
-  // Set up camera & barcode reader
-  useEffect(() => {
-    if (showManual || blocked) return;
+  const stopScanner = useCallback(() => {
+    scanningRef.current = false;
+    readerRef.current?.reset();
+    readerRef.current = null;
 
-    const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.EAN_13,
-      BarcodeFormat.EAN_8,
-      BarcodeFormat.UPC_A,
-      BarcodeFormat.UPC_E,
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.CODE_39,
-    ]);
-
-    const reader = new BrowserMultiFormatReader(hints, 500);
-    readerRef.current = reader;
-    scanningRef.current = true;
-
-    reader
-      .decodeFromConstraints(
-        {
-          audio: false,
-          video: { facingMode: "environment" },
-        },
-        videoRef.current!,
-        (result, err) => {
-          if (!scanningRef.current) return;
-          if (result) {
-            scanningRef.current = false;
-            handleDetectedBarcode(result.getText());
-          }
-          // Errors are expected while scanning (no barcode in frame), ignore them
-        }
-      )
-      .then(() => {
-        // Grab the stream for torch control
-        if (videoRef.current?.srcObject) {
-          streamRef.current = videoRef.current.srcObject as MediaStream;
-        }
-      })
-      .catch((e) => {
-        console.error("Camera error:", e);
-        setCameraError("Camera access denied or unavailable. Use manual entry instead.");
-      });
-
-    return () => {
-      scanningRef.current = false;
-      reader.reset();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
-    };
-  }, [showManual, blocked]);
+    }
 
-  // Torch toggle
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    setTorch(false);
+    setScannerStarted(false);
+  }, []);
+
+  useEffect(() => {
+    if (showManual) {
+      stopScanner();
+    }
+  }, [showManual, stopScanner]);
+
+  useEffect(() => {
+    return () => stopScanner();
+  }, [stopScanner]);
+
   useEffect(() => {
     if (!streamRef.current) return;
     const track = streamRef.current.getVideoTracks()[0];
     if (track && "applyConstraints" in track) {
-      track.applyConstraints({ advanced: [{ torch } as any] }).catch(() => {});
+      track.applyConstraints({ advanced: [{ torch } as MediaTrackConstraintSet] }).catch(() => {});
     }
   }, [torch]);
 
