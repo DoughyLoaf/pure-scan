@@ -518,8 +518,6 @@ const Alternatives = () => {
 };
 
 export default Alternatives;
-
-  if (!product) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 pb-28">
         <ScanLine size={48} className="text-muted-foreground/40" strokeWidth={1.5} />
