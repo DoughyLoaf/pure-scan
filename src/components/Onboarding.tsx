@@ -1,12 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ScanLine } from "lucide-react";
-
-const SLIDES = [
-  { id: 0 },
-  { id: 1 },
-  { id: 2 },
-] as const;
 
 const ScoreRingPreview = () => {
   const score = 82;
@@ -28,7 +22,6 @@ const ScoreRingPreview = () => {
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-700 ease-out"
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -49,7 +42,6 @@ const FLAG_ROWS = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
@@ -79,7 +71,6 @@ const Onboarding = () => {
     setTouchStart(null);
   };
 
-  // Keyboard nav for desktop
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" && current < 2) goTo(current + 1);
@@ -90,33 +81,28 @@ const Onboarding = () => {
   }, [current]);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background">
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-background"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Skip button */}
       {current < 2 && (
-        <button
-          onClick={() => complete("/")}
-          className="absolute right-5 top-5 z-10 text-sm font-medium text-muted-foreground transition-colors active:text-foreground"
-        >
-          Skip
-        </button>
+        <div className="flex justify-end px-5 pt-5">
+          <button
+            onClick={() => complete("/")}
+            className="text-sm font-medium text-muted-foreground transition-colors active:text-foreground"
+          >
+            Skip
+          </button>
+        </div>
       )}
+      {current === 2 && <div className="pt-5" />}
 
-      {/* Slides container */}
-      <div
-        ref={containerRef}
-        className="flex h-full w-full"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div
-          className="flex h-full transition-transform duration-300 ease-out"
-          style={{
-            width: "300%",
-            transform: `translateX(-${current * (100 / 3)}%)`,
-          }}
-        >
-          {/* Slide 1 */}
-          <div className="flex h-full w-1/3 flex-col items-center justify-center px-8">
+      {/* Slide content */}
+      <div className="flex flex-1 flex-col items-center justify-center px-8">
+        {current === 0 && (
+          <div className="flex flex-col items-center animate-fade-in">
             <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-accent mb-6">
               <ScanLine className="text-primary" size={44} strokeWidth={1.6} />
             </div>
@@ -132,9 +118,10 @@ const Onboarding = () => {
               Pure analyzes every ingredient and gives your food an honest score from 0 to 100.
             </p>
           </div>
+        )}
 
-          {/* Slide 2 */}
-          <div className="flex h-full w-1/3 flex-col items-center justify-center px-8">
+        {current === 1 && (
+          <div className="flex flex-col items-center animate-fade-in">
             <div className="mb-6 w-full max-w-xs flex flex-col gap-3">
               {FLAG_ROWS.map((row) => (
                 <div
@@ -160,9 +147,10 @@ const Onboarding = () => {
               No brand can pay to improve their rating. Our methodology is fully transparent.
             </p>
           </div>
+        )}
 
-          {/* Slide 3 */}
-          <div className="flex h-full w-1/3 flex-col items-center justify-center px-8">
+        {current === 2 && (
+          <div className="flex flex-col items-center animate-fade-in">
             <div className="mb-6">
               <ScoreRingPreview />
             </div>
@@ -176,24 +164,22 @@ const Onboarding = () => {
               Free users get 5 scans per day. No account needed. Start with anything in your kitchen.
             </p>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Bottom area: dots + button */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-6 px-6 pb-12">
-        {/* Dot indicators */}
+      <div className="flex flex-col items-center gap-6 px-6 pb-12">
         <div className="flex gap-2">
-          {SLIDES.map((s) => (
+          {[0, 1, 2].map((i) => (
             <div
-              key={s.id}
+              key={i}
               className={`h-2 rounded-full transition-all duration-300 ${
-                s.id === current ? "w-6 bg-primary" : "w-2 bg-border"
+                i === current ? "w-6 bg-primary" : "w-2 bg-border"
               }`}
             />
           ))}
         </div>
 
-        {/* CTA button */}
         {current < 2 ? (
           <button
             onClick={() => goTo(current + 1)}
