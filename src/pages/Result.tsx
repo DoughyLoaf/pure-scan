@@ -99,8 +99,10 @@ const getRiskLevel = (category: string): { label: string; color: string; bg: str
       return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
     case "Emulsifier":
       return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
+    case "Ultra-Processed":
+      return { label: "Low-Medium", color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" };
     default:
-      return { label: "Low-Medium", color: "hsl(38, 70%, 55%)", bg: "hsl(38, 70%, 55%, 0.1)" };
+      return { label: "Low-Medium", color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" };
   }
 };
 
@@ -355,8 +357,11 @@ const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngred
                 Flagged for you
               </span>
             )}
-            <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
-              Avoid
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+              style={{ backgroundColor: risk.bg, color: risk.color }}
+            >
+              {risk.label}
             </span>
           </div>
           <span className="text-[11px] font-semibold text-destructive">
