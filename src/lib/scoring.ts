@@ -92,7 +92,36 @@ export function analyzeIngredients(rawText: string): { score: number; flagged: F
   return { score, flagged };
 }
 
+const CACHE_PREFIX = "pure_product_";
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function getCachedProduct(barcode: string): ProductResult | null {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + barcode);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL_MS) {
+      localStorage.removeItem(CACHE_PREFIX + barcode);
+      return null;
+    }
+    return data as ProductResult;
+  } catch {
+    return null;
+  }
+}
+
+function cacheProduct(barcode: string, product: ProductResult) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + barcode, JSON.stringify({ data: product, ts: Date.now() }));
+  } catch {
+    // Storage full or unavailable
+  }
+}
+
 export async function fetchProduct(barcode: string): Promise<ProductResult | null> {
+  const cached = getCachedProduct(barcode);
+  if (cached) return cached;
+
   const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
   if (!res.ok) return null;
 
@@ -105,6 +134,8 @@ export async function fetchProduct(barcode: string): Promise<ProductResult | nul
   const ingredientsRaw = product.ingredients_text || "";
 
   const { score, flagged } = analyzeIngredients(ingredientsRaw);
+  const result: ProductResult = { name, brand, score, ingredientsRaw, flagged };
 
-  return { name, brand, score, ingredientsRaw, flagged };
+  cacheProduct(barcode, result);
+  return result;
 }
