@@ -474,7 +474,7 @@ const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <div className="relative h-20 w-20 shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
+    <div className="relative h-[72px] w-[72px] shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
       {!loaded && (
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%]" />
       )}
@@ -556,8 +556,8 @@ const Result = () => {
           {data.imageUrl ? (
             <ProductImage src={data.imageUrl} alt={data.name} />
           ) : (
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted">
-              <Leaf size={28} strokeWidth={1.5} className="text-muted-foreground" />
+            <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl border border-border bg-muted">
+              <Leaf size={24} strokeWidth={1.5} className="text-muted-foreground" />
             </div>
           )}
           <div className="flex flex-col">
