@@ -298,21 +298,21 @@ const Index = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background px-5 sm:px-6 pb-24 pt-12 sm:pt-14">
+    <div className="flex min-h-screen flex-col bg-background px-5 sm:px-6 pb-24 pt-8 sm:pt-10">
       {/* Logo */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+      <div className="mb-5 sm:mb-6">
+        <h1 className="text-[28px] font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
           Pure<span className="text-primary">.</span>
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Know what's in your food.
+          The honest food scanner.
         </p>
       </div>
 
       {/* Hero CTA */}
       <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-5 sm:px-6 py-8 sm:py-10">
         <div className="mb-4 sm:mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-accent">
-          <ScanLine className="text-primary" size={26} strokeWidth={1.8} />
+          <ScanLine className="text-primary" size={30} strokeWidth={1.8} />
         </div>
         <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
           Scan a product
@@ -322,7 +322,7 @@ const Index = () => {
         </p>
         <button
           onClick={() => navigate("/scanner")}
-          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
+          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground transition-colors"
         >
           Start Scanning
         </button>
