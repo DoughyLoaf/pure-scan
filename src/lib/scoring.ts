@@ -50,12 +50,30 @@ const RULES: IngredientRule[] = [
   ["Saccharin", /saccharin/i, "Artificial Sweetener", 12, "One of the oldest artificial sweeteners, previously linked to cancer in animal studies."],
   ["Acesulfame Potassium", /acesulfame[\s-]*(potassium|k)/i, "Artificial Sweetener", 12, "An artificial sweetener with limited long-term safety data."],
 
+  // Added sugars — 8 pts each
+  ["High Fructose Corn Syrup", /high[\s-]+fructose\s+corn\s+syrup|hfcs/i, "Added Sugar", 8, "A cheap industrial sweetener linked to obesity, insulin resistance, and fatty liver disease."],
+  ["Corn Syrup", /(?<!high[\s-]+fructose\s+)corn\s+syrup/i, "Added Sugar", 8, "A highly processed liquid sugar that rapidly spikes blood glucose levels."],
+  ["Dextrose", /dextrose/i, "Added Sugar", 8, "A simple sugar derived from corn, used to add sweetness and extend shelf life."],
+  ["Glucose Syrup", /glucose[\s-]+syrup|glucose[\s-]+fructose\s+syrup/i, "Added Sugar", 8, "A concentrated sugar syrup that contributes to rapid blood sugar spikes and metabolic stress."],
+  ["Invert Sugar", /invert\s+sugar/i, "Added Sugar", 8, "A liquid sugar processed with acid or enzymes, absorbed faster than table sugar."],
+  ["Cane Sugar", /cane\s+sugar|evaporated\s+cane\s+juice/i, "Added Sugar", 8, "Refined sugar that provides empty calories with no nutritional benefit."],
+
+  // Emulsifiers — 7 pts each
+  ["Polysorbate 80", /polysorbate\s+80/i, "Emulsifier", 7, "A synthetic emulsifier linked to gut inflammation and impaired intestinal barrier function."],
+  ["Carboxymethylcellulose", /carboxymethylcellulose|cellulose\s+gum|\bcmc\b/i, "Emulsifier", 7, "A synthetic thickener shown to promote gut inflammation and metabolic syndrome in animal studies."],
+  ["Soy Lecithin", /soy\s+lecithin/i, "Emulsifier", 7, "A heavily processed byproduct of soybean oil production, often from GMO sources."],
+  ["Mono and Diglycerides", /mono[\s-]+and[\s-]+diglycerides|mono[\s-]*diglycerides/i, "Emulsifier", 7, "Synthetic fat-based emulsifiers that may contain trans fats not required to be listed on labels."],
+  ["Sodium Stearoyl Lactylate", /sodium\s+stearoyl\s+lactylate|\bssl\b/i, "Emulsifier", 7, "A synthetic emulsifier used as a dough conditioner with limited long-term safety data."],
+  ["DATEM", /\bdatem\b|diacetyl\s+tartaric/i, "Emulsifier", 7, "A dough conditioner derived from tartaric acid and fatty acids, common in commercial bread."],
+
   // Ultra-processed additives — 5 pts each
   ["Maltodextrin", /maltodextrin/i, "Ultra-Processed", 5, "A highly processed starch that spikes blood sugar faster than table sugar."],
   ["Carrageenan", /carrageenan/i, "Ultra-Processed", 5, "A thickener linked to gastrointestinal inflammation and digestive issues."],
   ["Modified Starch", /modified\s+(corn\s+|food\s+)?starch/i, "Ultra-Processed", 5, "A chemically or physically altered starch used as a thickener in processed foods."],
   ["Artificial Flavor", /artificial\s+flavou?r/i, "Ultra-Processed", 5, "A synthetic chemical blend with undisclosed compounds used to mimic natural taste."],
   ["Natural Flavor", /natural\s+flavou?r/i, "Ultra-Processed", 5, "A vague label that can include processed chemical compounds derived from natural sources."],
+  ["Sodium Nitrite", /sodium\s+nitrite/i, "Ultra-Processed", 5, "A preservative in processed meats that can form carcinogenic nitrosamines during cooking."],
+  ["Titanium Dioxide", /titanium\s+dioxide/i, "Ultra-Processed", 5, "A whitening agent banned in EU food products due to genotoxicity concerns."],
 ];
 
 function extractLabelContext(raw: string, pattern: RegExp): string {

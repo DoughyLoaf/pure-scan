@@ -75,6 +75,8 @@ const PREF_CATEGORY_MAP: Record<string, string> = {
   "artificial-dyes": "Artificial Dye",
   "artificial-sweeteners": "Artificial Sweetener",
   "preservatives": "Preservative",
+  "added-sugars": "Added Sugar",
+  "emulsifiers": "Emulsifier",
 };
 
 const getUserFlaggedCategories = (): Set<string> => {
@@ -93,6 +95,9 @@ const getRiskLevel = (category: string): { label: string; color: string; bg: str
       return { label: "High Risk", color: "hsl(0, 72%, 51%)", bg: "hsl(0, 72%, 51%, 0.1)" };
     case "Preservative":
     case "Artificial Dye":
+    case "Added Sugar":
+      return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
+    case "Emulsifier":
       return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
     default:
       return { label: "Low-Medium", color: "hsl(38, 70%, 55%)", bg: "hsl(38, 70%, 55%, 0.1)" };
@@ -239,6 +244,79 @@ const LEARN_MORE: Record<string, string[]> = {
     "Can contain up to 100 different chemicals including solvents and preservatives.",
     "The 'natural' label only requires the source to be plant, animal, or mineral-derived.",
     "Often as heavily processed as artificial flavors despite the healthier-sounding name.",
+  ],
+  // Added Sugars
+  "High Fructose Corn Syrup": [
+    "Metabolized primarily by the liver, contributing to non-alcoholic fatty liver disease.",
+    "Bypasses normal satiety signals, promoting overconsumption and weight gain.",
+    "Linked to increased uric acid levels, raising risk of gout and cardiovascular disease.",
+  ],
+  "Corn Syrup": [
+    "A liquid sweetener with a high glycemic index that rapidly elevates blood sugar.",
+    "Often used to add bulk and moisture to ultra-processed foods at low cost.",
+    "Provides empty calories with no vitamins, minerals, or fiber.",
+  ],
+  "Dextrose": [
+    "A simple sugar (glucose) with a glycemic index near 100, one of the highest possible.",
+    "Rapidly absorbed, causing sharp insulin spikes that promote fat storage.",
+    "Commonly added to processed meats, snacks, and baked goods as a hidden sugar source.",
+  ],
+  "Glucose Syrup": [
+    "Industrially produced by breaking down starch using acids or enzymes.",
+    "Contributes to rapid blood sugar spikes and subsequent energy crashes.",
+    "Often combined with fructose syrup in processed foods to enhance sweetness cheaply.",
+  ],
+  "Invert Sugar": [
+    "Processed with acids or enzymes to break sucrose into glucose and fructose.",
+    "Absorbed more rapidly than regular sugar, intensifying metabolic impact.",
+    "Used in confections and beverages to prevent crystallization and enhance sweetness.",
+  ],
+  "Cane Sugar": [
+    "Despite its 'natural' image, refined cane sugar offers no nutritional advantage over white sugar.",
+    "Excessive intake is strongly linked to obesity, type 2 diabetes, and heart disease.",
+    "The WHO recommends limiting added sugars to less than 10% of daily caloric intake.",
+  ],
+  // Emulsifiers
+  "Polysorbate 80": [
+    "Animal studies show it erodes the protective mucus lining of the gut.",
+    "Linked to increased intestinal permeability ('leaky gut') and low-grade inflammation.",
+    "May promote conditions like colitis and metabolic syndrome according to Georgia State University research.",
+  ],
+  "Carboxymethylcellulose": [
+    "Studies show it alters gut microbiome composition and promotes bacterial overgrowth.",
+    "Linked to intestinal inflammation and metabolic syndrome in mouse models.",
+    "Used as a thickener in ice cream, sauces, and gluten-free baked goods.",
+  ],
+  "Soy Lecithin": [
+    "Extracted from soybean oil using chemical solvents, predominantly from GMO soybeans.",
+    "While generally considered safe in small amounts, cumulative exposure is poorly studied.",
+    "Can cause reactions in individuals with soy allergies despite being highly processed.",
+  ],
+  "Mono and Diglycerides": [
+    "May contain trans fats that are exempt from labeling requirements on nutrition panels.",
+    "Produced through industrial glycerolysis of fats, often from hydrogenated oils.",
+    "Found in nearly every category of processed food from bread to ice cream.",
+  ],
+  "Sodium Stearoyl Lactylate": [
+    "A synthetic emulsifier made from stearic acid and lactic acid.",
+    "Commonly used in commercial bread to improve texture and extend shelf life.",
+    "Limited independent research exists on long-term effects of daily consumption.",
+  ],
+  "DATEM": [
+    "One of the most common dough conditioners in commercial bread production.",
+    "Made by esterifying tartaric acid with mono- and diglycerides of fatty acids.",
+    "Some studies raise concerns about potential heart muscle scarring at high doses in animals.",
+  ],
+  // Additional Ultra-Processed
+  "Sodium Nitrite": [
+    "Forms nitrosamines—potent carcinogens—when exposed to high heat during cooking.",
+    "The WHO classifies processed meats containing nitrites as Group 1 carcinogens.",
+    "Used primarily in bacon, hot dogs, and deli meats to preserve color and inhibit bacteria.",
+  ],
+  "Titanium Dioxide": [
+    "Banned as a food additive in the European Union since 2022 due to genotoxicity concerns.",
+    "Nanoparticles may accumulate in organs and cross the blood-brain barrier.",
+    "Used purely for cosmetic whitening in candies, frosting, and chewing gum.",
   ],
 };
 
