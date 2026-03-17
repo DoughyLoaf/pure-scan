@@ -289,7 +289,7 @@ const Result = () => {
         </h3>
         <div className="flex flex-col gap-3">
           {data.flagged.map((ing) => (
-            <FlagCard key={ing.name} ingredient={ing} />
+            <FlagCard key={ing.name} ingredient={ing} flaggedCategories={flaggedCategories} />
           ))}
         </div>
       </div>
