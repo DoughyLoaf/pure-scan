@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan, getScansRemaining } from "@/lib/scan-limits";
+import { isWaterProduct, findWaterBrand } from "@/lib/water-database";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;

@@ -154,8 +154,9 @@ export async function fetchProduct(barcode: string): Promise<ProductResult | nul
   const ingredientsRaw = product.ingredients_text || "";
 
   const imageUrl = product.image_front_url || product.image_front_small_url || undefined;
+  const categoriesRaw = product.categories_tags?.join(',') ?? '';
   const { score, flagged } = analyzeIngredients(ingredientsRaw);
-  const result: ProductResult = { name, brand, score, ingredientsRaw, flagged, imageUrl };
+  const result: ProductResult = { name, brand, score, ingredientsRaw, flagged, imageUrl, categoriesRaw };
 
   cacheProduct(barcode, result);
   return result;
