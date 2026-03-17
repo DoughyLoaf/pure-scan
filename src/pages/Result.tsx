@@ -125,7 +125,8 @@ const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngred
         </p>
       </div>
     </div>
-);
+  );
+};
 
 const MethodologySection = () => {
   const [open, setOpen] = useState(false);
