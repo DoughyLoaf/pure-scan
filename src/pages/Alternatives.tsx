@@ -31,7 +31,7 @@ function inferCategory(name: string, brand?: string): string {
   if (/bar|cliff|kind|rxbar|protein\s*bar|granola\s*bar|snack\s*bar/i.test(n)) return "bars";
   if (/noodle|ramen|pasta|mac.*cheese/i.test(n)) return "noodles";
   if (/milk|oat.*milk|almond.*milk/i.test(n)) return "milk";
-  if (/chocolate/i.test(n)) return "chocolate";
+  if (/chocolate|cocoa|hazelnut|nutella|spread/i.test(n)) return "chocolate";
   if (/popcorn/i.test(n)) return "popcorn";
   if (/frozen/i.test(n)) return "frozen meals";
   return "snack";
