@@ -210,7 +210,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             {seedOilCount}
           </p>
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
-            Seed oil exposures
+            Seed oils
           </p>
         </div>
 
@@ -223,7 +223,34 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             {additiveCount}
           </p>
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
-            Artificial additives
+            Additives
+          </p>
+        </div>
+
+        {/* Added Sugars */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(330, 70%, 50%, 0.1)" }}>
+            <Candy size={18} style={{ color: "hsl(330, 70%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {sugarCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Added sugars
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 sm:mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+        {/* Emulsifiers */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(200, 60%, 50%, 0.1)" }}>
+            <Droplets size={18} style={{ color: "hsl(200, 60%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {emulsifierCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Emulsifiers
           </p>
         </div>
 
@@ -244,9 +271,12 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             {avgScore}
           </p>
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
-            Avg Pure Score
+            Avg Score
           </p>
         </div>
+
+        {/* Empty spacer for balanced grid */}
+        <div />
       </div>
     </div>
   );
