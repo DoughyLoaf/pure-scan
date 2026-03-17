@@ -170,6 +170,24 @@ const MethodologySection = () => {
   );
 };
 
+const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className="relative h-20 w-20 shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
+      {!loaded && (
+        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%]" />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </div>
+  );
+};
+
 const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
