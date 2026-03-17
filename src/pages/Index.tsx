@@ -132,15 +132,15 @@ const Index = () => {
   const history = getScanHistory();
   const onboardingComplete = localStorage.getItem("pure_onboarding_complete") === "true";
 
-  if (!onboardingComplete) {
-    return <Onboarding />;
-  }
-
   const totalScanned = history.length;
   const totalFlagged = useMemo(
     () => history.reduce((sum, e) => sum + e.product.flagged.length, 0),
     [history]
   );
+
+  if (!onboardingComplete) {
+    return <Onboarding />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background px-5 sm:px-6 pb-24 pt-12 sm:pt-14">
