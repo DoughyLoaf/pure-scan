@@ -99,8 +99,10 @@ const getRiskLevel = (category: string): { label: string; color: string; bg: str
       return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
     case "Emulsifier":
       return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
+    case "Ultra-Processed":
+      return { label: "Low-Medium", color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" };
     default:
-      return { label: "Low-Medium", color: "hsl(38, 70%, 55%)", bg: "hsl(38, 70%, 55%, 0.1)" };
+      return { label: "Low-Medium", color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" };
   }
 };
 
