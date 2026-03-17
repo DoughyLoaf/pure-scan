@@ -198,13 +198,6 @@ const Scanner = () => {
     }, 350);
   };
 
-  const handleDemoScan = () => {
-    if (blocked) {
-      navigate("/paywall");
-      return;
-    }
-    navigateWithScan(DEMO_DATA);
-  };
 
   const handleBarcodeLookup = async () => {
     if (!barcode.trim()) return;
