@@ -1,4 +1,4 @@
-import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle } from "lucide-react";
+import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
@@ -127,6 +127,127 @@ const StreakTracker = ({ history }: { history: ScanHistoryEntry[] }) => {
   );
 };
 
+function getWeekScans(history: ScanHistoryEntry[], weeksAgo: number) {
+  const now = new Date();
+  const startOfThisWeek = new Date(now);
+  startOfThisWeek.setDate(now.getDate() - now.getDay() - weeksAgo * 7);
+  startOfThisWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfThisWeek);
+  endOfWeek.setDate(startOfThisWeek.getDate() + 7);
+  return history.filter((e) => {
+    const d = new Date(e.scannedAt);
+    return d >= startOfThisWeek && d < endOfWeek;
+  });
+}
+
+const SEED_OIL_CAT = "Seed Oil";
+const ADDITIVE_CATS = new Set(["Artificial Dye", "Artificial Sweetener", "Preservative"]);
+
+const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
+  const { seedOilCount, additiveCount, avgScore, trend } = useMemo(() => {
+    const thisWeek = getWeekScans(history, 0);
+    const lastWeek = getWeekScans(history, 1);
+
+    let oils = 0;
+    let additives = 0;
+    let scoreSum = 0;
+    thisWeek.forEach((e) => {
+      scoreSum += e.product.score;
+      e.product.flagged.forEach((f) => {
+        if (f.category === SEED_OIL_CAT) oils++;
+        if (ADDITIVE_CATS.has(f.category)) additives++;
+      });
+    });
+
+    const avg = thisWeek.length > 0 ? Math.round(scoreSum / thisWeek.length) : 0;
+
+    let lastAvg = 0;
+    if (lastWeek.length > 0) {
+      lastAvg = Math.round(lastWeek.reduce((s, e) => s + e.product.score, 0) / lastWeek.length);
+    }
+
+    const t = thisWeek.length === 0 ? "neutral" : avg > lastAvg ? "up" : avg < lastAvg ? "down" : "neutral";
+    return { seedOilCount: oils, additiveCount: additives, avgScore: avg, trend: t as "up" | "down" | "neutral" };
+  }, [history]);
+
+  const avgColor = avgScore < 40 ? "hsl(0, 72%, 51%)" : avgScore < 75 ? "hsl(38, 92%, 50%)" : "hsl(var(--primary))";
+  const circumference = 2 * Math.PI * 16;
+  const strokeDash = (avgScore / 100) * circumference;
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          This week
+        </span>
+        {trend !== "neutral" && (
+          <span
+            className="flex items-center gap-1 text-xs font-semibold"
+            style={{ color: trend === "up" ? "hsl(var(--primary))" : "hsl(0, 72%, 51%)" }}
+          >
+            {trend === "up" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+            {trend === "up" ? "Better" : "Worse"} than last week
+          </span>
+        )}
+        {trend === "neutral" && (
+          <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+            <Minus size={14} />
+            Same as last week
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {/* Seed Oil Exposures */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/10">
+            <Flame size={18} className="text-destructive" />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {seedOilCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Seed oil exposures
+          </p>
+        </div>
+
+        {/* Artificial Additives */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(38, 92%, 50%, 0.1)" }}>
+            <FlaskConical size={18} style={{ color: "hsl(38, 92%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {additiveCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Artificial additives
+          </p>
+        </div>
+
+        {/* Average Pure Score */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="16" fill="none" stroke="hsl(var(--border))" strokeWidth="3" />
+            <circle
+              cx="18" cy="18" r="16" fill="none"
+              stroke={avgColor}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`${strokeDash} ${circumference}`}
+              transform="rotate(-90 18 18)"
+            />
+          </svg>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: avgColor }}>
+            {avgScore}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Avg Pure Score
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const history = getScanHistory();
@@ -201,6 +322,13 @@ const Index = () => {
       {totalScanned > 0 && (
         <div className="mt-4 sm:mt-5">
           <StreakTracker history={history} />
+        </div>
+      )}
+
+      {/* Weekly Health Summary */}
+      {totalScanned > 0 && (
+        <div className="mt-4 sm:mt-5">
+          <WeeklySummary history={history} />
         </div>
       )}
 
