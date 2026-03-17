@@ -356,7 +356,7 @@ const WaterReport = () => {
             Scan another
           </button>
           <button
-            onClick={() => navigate("/alternatives", { state: { waterMode: true } })}
+            onClick={() => navigate("/alternatives", { state: { waterMode: true, scannedBrandName: brand.name } })}
             className="flex-1 rounded-xl bg-water py-3 text-sm font-bold text-water-foreground transition-colors active:opacity-90"
           >
             Compare brands
