@@ -70,36 +70,63 @@ const ScoreRing = ({ score }: { score: number }) => {
   );
 };
 
-const FlagCard = ({ ingredient }: { ingredient: FlaggedIngredient }) => (
-  <div className="rounded-2xl border border-border bg-card p-4">
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <h4 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-          {ingredient.name}
-        </h4>
-        <span className="mt-0.5 inline-block text-[11px] font-medium text-muted-foreground">
-          {ingredient.category}
-        </span>
+const PREF_CATEGORY_MAP: Record<string, string> = {
+  "seed-oils": "Seed Oil",
+  "artificial-dyes": "Artificial Dye",
+  "artificial-sweeteners": "Artificial Sweetener",
+  "preservatives": "Preservative",
+};
+
+const getUserFlaggedCategories = (): Set<string> => {
+  try {
+    const prefs: string[] = JSON.parse(localStorage.getItem("pure_dietary_prefs") || "[]");
+    return new Set(prefs.map((id) => PREF_CATEGORY_MAP[id]).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+};
+
+const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngredient; flaggedCategories: Set<string> }) => {
+  const isFlaggedForUser = flaggedCategories.has(ingredient.category);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            {ingredient.name}
+          </h4>
+          <span className="mt-0.5 inline-block text-[11px] font-medium text-muted-foreground">
+            {ingredient.category}
+          </span>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
+            {isFlaggedForUser && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                Flagged for you
+              </span>
+            )}
+            <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
+              Avoid
+            </span>
+          </div>
+          <span className="text-[11px] font-semibold text-destructive">
+            −{ingredient.deduction} pts
+          </span>
+        </div>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
-          Avoid
-        </span>
-        <span className="text-[11px] font-semibold text-destructive">
-          −{ingredient.deduction} pts
-        </span>
-      </div>
-    </div>
-    <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-      {ingredient.reason}
-    </p>
-    <div className="mt-3 rounded-lg bg-muted px-3 py-2">
-      <p className="font-mono text-[12px] text-muted-foreground">
-        {ingredient.labelText}
+      <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+        {ingredient.reason}
       </p>
+      <div className="mt-3 rounded-lg bg-muted px-3 py-2">
+        <p className="font-mono text-[12px] text-muted-foreground">
+          {ingredient.labelText}
+        </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const MethodologySection = () => {
   const [open, setOpen] = useState(false);
@@ -151,6 +178,7 @@ const Result = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [ready, setReady] = useState(false);
   const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
+  const [flaggedCategories] = useState(() => getUserFlaggedCategories());
 
   const locationState = location.state as { product?: ProductResult } | null;
   const data = locationState?.product ?? DEMO_DATA;
@@ -261,7 +289,7 @@ const Result = () => {
         </h3>
         <div className="flex flex-col gap-3">
           {data.flagged.map((ing) => (
-            <FlagCard key={ing.name} ingredient={ing} />
+            <FlagCard key={ing.name} ingredient={ing} flaggedCategories={flaggedCategories} />
           ))}
         </div>
       </div>
