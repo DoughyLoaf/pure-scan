@@ -13,6 +13,8 @@ import Result from "./pages/Result";
 import Alternatives from "./pages/Alternatives";
 import Profile from "./pages/Profile";
 import Paywall from "./pages/Paywall";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const AnimatedRoutes = () => {
         <Route path="/alternatives" element={<Alternatives />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/paywall" element={<Paywall />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
