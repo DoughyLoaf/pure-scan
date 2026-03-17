@@ -178,6 +178,7 @@ const Result = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [ready, setReady] = useState(false);
   const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
+  const [flaggedCategories] = useState(() => getUserFlaggedCategories());
 
   const locationState = location.state as { product?: ProductResult } | null;
   const data = locationState?.product ?? DEMO_DATA;
