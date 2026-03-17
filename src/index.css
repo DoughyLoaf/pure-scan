@@ -34,6 +34,9 @@
     --input: 220 13% 90%;
     --ring: 157 70% 37%;
 
+    --water: 199 89% 48%;
+    --water-foreground: 0 0% 100%;
+
     --radius: 0.75rem;
 
     --font-display: 'Inter', system-ui, sans-serif;

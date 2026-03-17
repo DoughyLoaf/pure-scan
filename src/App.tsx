@@ -16,6 +16,7 @@ import Paywall from "./pages/Paywall";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
+import WaterReport from "./pages/WaterReport";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/result" element={<Result />} />
+        <Route path="/water-report" element={<WaterReport />} />
         <Route path="/alternatives" element={<Alternatives />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/paywall" element={<Paywall />} />
