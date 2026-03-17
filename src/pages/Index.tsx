@@ -1,4 +1,4 @@
-import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus, Candy, Droplets } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
