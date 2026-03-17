@@ -103,17 +103,19 @@ const Scanner = () => {
 
   const handleDetectedBarcode = useCallback(
     async (code: string) => {
+      stopScanner();
+
       if (!canScan()) {
         navigate("/paywall");
         return;
       }
+
       setScanLoading(true);
       try {
         const product = await fetchProduct(code);
         if (product) {
           navigateWithScan(product);
         } else {
-          // Product not in DB — open manual panel with barcode pre-filled
           setScanLoading(false);
           setBarcode(code);
           setNotFound(true);
@@ -126,9 +128,52 @@ const Scanner = () => {
         setShowManual(true);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [navigate, stopScanner]
   );
+
+  const startScanner = useCallback(async () => {
+    if (blocked || showManual || scannerStarted || !videoRef.current) return;
+
+    setCameraError(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+        },
+      });
+
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+      ]);
+
+      const reader = new BrowserMultiFormatReader(hints, 500);
+      readerRef.current = reader;
+      scanningRef.current = true;
+      setScannerStarted(true);
+
+      reader.decodeFromStream(stream, videoRef.current, (result) => {
+        if (!scanningRef.current || !result) return;
+        scanningRef.current = false;
+        void handleDetectedBarcode(result.getText());
+      });
+    } catch (error) {
+      console.error("Camera start error:", error);
+      stopScanner();
+      setCameraError("Camera access failed. Tap again or use manual entry.");
+    }
+  }, [blocked, handleDetectedBarcode, scannerStarted, showManual, stopScanner]);
 
   const navigateWithScan = (product: ProductResult) => {
     if (!canScan()) {
