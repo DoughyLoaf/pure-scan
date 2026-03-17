@@ -16,6 +16,7 @@ import Paywall from "./pages/Paywall";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
+import WaterReport from "./pages/WaterReport";
 
 const queryClient = new QueryClient();
 
