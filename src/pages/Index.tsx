@@ -1,4 +1,4 @@
-import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus, Candy, Droplets } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
@@ -144,18 +144,22 @@ const SEED_OIL_CAT = "Seed Oil";
 const ADDITIVE_CATS = new Set(["Artificial Dye", "Artificial Sweetener", "Preservative"]);
 
 const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
-  const { seedOilCount, additiveCount, avgScore, trend } = useMemo(() => {
+  const { seedOilCount, additiveCount, sugarCount, emulsifierCount, avgScore, trend } = useMemo(() => {
     const thisWeek = getWeekScans(history, 0);
     const lastWeek = getWeekScans(history, 1);
 
     let oils = 0;
     let additives = 0;
+    let sugars = 0;
+    let emulsifiers = 0;
     let scoreSum = 0;
     thisWeek.forEach((e) => {
       scoreSum += e.product.score;
       e.product.flagged.forEach((f) => {
         if (f.category === SEED_OIL_CAT) oils++;
         if (ADDITIVE_CATS.has(f.category)) additives++;
+        if (f.category === "Added Sugar") sugars++;
+        if (f.category === "Emulsifier") emulsifiers++;
       });
     });
 
@@ -167,7 +171,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
     }
 
     const t = thisWeek.length === 0 ? "neutral" : avg > lastAvg ? "up" : avg < lastAvg ? "down" : "neutral";
-    return { seedOilCount: oils, additiveCount: additives, avgScore: avg, trend: t as "up" | "down" | "neutral" };
+    return { seedOilCount: oils, additiveCount: additives, sugarCount: sugars, emulsifierCount: emulsifiers, avgScore: avg, trend: t as "up" | "down" | "neutral" };
   }, [history]);
 
   const avgColor = avgScore < 40 ? "hsl(0, 72%, 51%)" : avgScore < 75 ? "hsl(38, 92%, 50%)" : "hsl(var(--primary))";
@@ -206,7 +210,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             {seedOilCount}
           </p>
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
-            Seed oil exposures
+            Seed oils
           </p>
         </div>
 
@@ -219,7 +223,34 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             {additiveCount}
           </p>
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
-            Artificial additives
+            Additives
+          </p>
+        </div>
+
+        {/* Added Sugars */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(330, 70%, 50%, 0.1)" }}>
+            <Candy size={18} style={{ color: "hsl(330, 70%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {sugarCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Added sugars
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 sm:mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+        {/* Emulsifiers */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(200, 60%, 50%, 0.1)" }}>
+            <Droplets size={18} style={{ color: "hsl(200, 60%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {emulsifierCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Emulsifiers
           </p>
         </div>
 
@@ -240,9 +271,12 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             {avgScore}
           </p>
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
-            Avg Pure Score
+            Avg Score
           </p>
         </div>
+
+        {/* Empty spacer for balanced grid */}
+        <div />
       </div>
     </div>
   );
