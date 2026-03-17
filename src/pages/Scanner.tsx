@@ -103,6 +103,27 @@ const Scanner = () => {
 
   const handleDetectedBarcode = useCallback(
     async (code: string) => {
+      // Haptic vibration feedback
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+
+      // Short beep sound
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 1200;
+        gain.gain.value = 0.15;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.15);
+      } catch {
+        // Audio not available, skip
+      }
+
       stopScanner();
 
       if (!canScan()) {
