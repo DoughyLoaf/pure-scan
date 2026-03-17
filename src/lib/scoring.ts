@@ -12,6 +12,7 @@ export interface ProductResult {
   score: number;
   ingredientsRaw: string;
   flagged: FlaggedIngredient[];
+  imageUrl?: string;
 }
 
 // [display name, regex, category, deduction, explanation]
