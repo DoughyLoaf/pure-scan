@@ -256,6 +256,19 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
           </p>
         </div>
 
+        {/* Artificial Dyes */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(350, 70%, 50%, 0.1)" }}>
+            <Palette size={18} style={{ color: "hsl(350, 70%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {dyeCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Artificial dyes
+          </p>
+        </div>
+
         {/* Average Pure Score */}
         <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
           <svg width="36" height="36" viewBox="0 0 36 36">
@@ -276,9 +289,6 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             Avg Score
           </p>
         </div>
-
-        {/* Empty spacer for balanced grid */}
-        <div />
       </div>
     </div>
   );
