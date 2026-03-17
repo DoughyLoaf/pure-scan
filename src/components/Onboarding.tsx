@@ -104,7 +104,7 @@ const Onboarding = () => {
       {/* Slides container */}
       <div
         ref={containerRef}
-        className="flex h-full w-full"
+        className="h-full w-full overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
