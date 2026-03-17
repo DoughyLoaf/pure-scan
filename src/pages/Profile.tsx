@@ -218,6 +218,19 @@ const Profile = () => {
               <span>Terms of Service</span>
               <ChevronRight size={16} className="text-muted-foreground" />
             </button>
+            <div className="mx-4 border-t border-border" />
+            <button
+              onClick={clearProductCache}
+              className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted"
+            >
+              <span className="flex items-center gap-2">
+                <Database size={14} className="text-muted-foreground" />
+                Clear product cache
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {cacheCount} {cacheCount === 1 ? "product" : "products"}
+              </span>
+            </button>
           </div>
         </div>
 
