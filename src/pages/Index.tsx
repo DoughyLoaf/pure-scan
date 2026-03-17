@@ -144,18 +144,22 @@ const SEED_OIL_CAT = "Seed Oil";
 const ADDITIVE_CATS = new Set(["Artificial Dye", "Artificial Sweetener", "Preservative"]);
 
 const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
-  const { seedOilCount, additiveCount, avgScore, trend } = useMemo(() => {
+  const { seedOilCount, additiveCount, sugarCount, emulsifierCount, avgScore, trend } = useMemo(() => {
     const thisWeek = getWeekScans(history, 0);
     const lastWeek = getWeekScans(history, 1);
 
     let oils = 0;
     let additives = 0;
+    let sugars = 0;
+    let emulsifiers = 0;
     let scoreSum = 0;
     thisWeek.forEach((e) => {
       scoreSum += e.product.score;
       e.product.flagged.forEach((f) => {
         if (f.category === SEED_OIL_CAT) oils++;
         if (ADDITIVE_CATS.has(f.category)) additives++;
+        if (f.category === "Added Sugar") sugars++;
+        if (f.category === "Emulsifier") emulsifiers++;
       });
     });
 
@@ -167,7 +171,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
     }
 
     const t = thisWeek.length === 0 ? "neutral" : avg > lastAvg ? "up" : avg < lastAvg ? "down" : "neutral";
-    return { seedOilCount: oils, additiveCount: additives, avgScore: avg, trend: t as "up" | "down" | "neutral" };
+    return { seedOilCount: oils, additiveCount: additives, sugarCount: sugars, emulsifierCount: emulsifiers, avgScore: avg, trend: t as "up" | "down" | "neutral" };
   }, [history]);
 
   const avgColor = avgScore < 40 ? "hsl(0, 72%, 51%)" : avgScore < 75 ? "hsl(38, 92%, 50%)" : "hsl(var(--primary))";
