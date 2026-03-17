@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
 import { useMemo } from "react";
+import Onboarding from "@/components/Onboarding";
 
 const scoreColor = (score: number) => {
   if (score < 40) return "hsl(0, 72%, 51%)";
@@ -129,12 +130,17 @@ const StreakTracker = ({ history }: { history: ScanHistoryEntry[] }) => {
 const Index = () => {
   const navigate = useNavigate();
   const history = getScanHistory();
+  const onboardingComplete = localStorage.getItem("pure_onboarding_complete") === "true";
 
   const totalScanned = history.length;
   const totalFlagged = useMemo(
     () => history.reduce((sum, e) => sum + e.product.flagged.length, 0),
     [history]
   );
+
+  if (!onboardingComplete) {
+    return <Onboarding />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background px-5 sm:px-6 pb-24 pt-12 sm:pt-14">
