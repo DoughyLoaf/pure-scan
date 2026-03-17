@@ -13,6 +13,7 @@ export interface ProductResult {
   ingredientsRaw: string;
   flagged: FlaggedIngredient[];
   imageUrl?: string;
+  categoriesRaw?: string;
 }
 
 // [display name, regex, category, deduction, explanation]
