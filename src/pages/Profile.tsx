@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import { getDailyScansUsed, isPro, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
-import { ChevronRight, Clock, Crown, Leaf, Shield, Trash2 } from "lucide-react";
+import { ChevronRight, Clock, Crown, Database, Leaf, Shield, Trash2 } from "lucide-react";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
 
 const DIETARY_OPTIONS = [
