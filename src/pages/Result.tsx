@@ -357,8 +357,11 @@ const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngred
                 Flagged for you
               </span>
             )}
-            <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
-              Avoid
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+              style={{ backgroundColor: risk.bg, color: risk.color }}
+            >
+              {risk.label}
             </span>
           </div>
           <span className="text-[11px] font-semibold text-destructive">
