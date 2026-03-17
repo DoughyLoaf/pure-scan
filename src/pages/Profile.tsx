@@ -90,6 +90,16 @@ const Profile = () => {
     window.location.reload();
   };
 
+  const clearProductCache = () => {
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith("pure_product_"));
+    keys.forEach((k) => localStorage.removeItem(k));
+    setCacheCount(0);
+  };
+
+  const [cacheCount, setCacheCount] = useState(() =>
+    Object.keys(localStorage).filter((k) => k.startsWith("pure_product_")).length
+  );
+
   return (
     <div className="min-h-screen bg-background pb-28">
       <div className="px-5 sm:px-6 pt-12 sm:pt-14">
