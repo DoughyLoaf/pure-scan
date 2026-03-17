@@ -611,6 +611,34 @@ const Result = () => {
           </div>
         </div>
 
+        {/* Risk summary */}
+        {(() => {
+          const counts = { high: 0, medium: 0, low: 0 };
+          data.flagged.forEach((ing) => {
+            const r = getRiskLevel(ing.category);
+            if (r.label === "High Risk") counts.high++;
+            else if (r.label === "Medium Risk") counts.medium++;
+            else counts.low++;
+          });
+          const pills: { label: string; count: number; color: string; bg: string }[] = [];
+          if (counts.high) pills.push({ label: "High Risk", count: counts.high, color: "hsl(0, 72%, 51%)", bg: "hsl(0, 72%, 51%, 0.1)" });
+          if (counts.medium) pills.push({ label: "Medium Risk", count: counts.medium, color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" });
+          if (counts.low) pills.push({ label: "Low-Medium", count: counts.low, color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" });
+          return pills.length > 0 ? (
+            <div className="mb-6 flex flex-wrap gap-2">
+              {pills.map((p) => (
+                <span
+                  key={p.label}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+                  style={{ backgroundColor: p.bg, color: p.color }}
+                >
+                  <span className="font-bold">{p.count}</span> {p.label}
+                </span>
+              ))}
+            </div>
+          ) : null;
+        })()}
+
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Why this score?
         </h3>
