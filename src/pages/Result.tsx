@@ -238,11 +238,7 @@ const Result = () => {
       <div className="mt-6 flex flex-col items-center px-6">
         <div className="flex items-center gap-4 w-full justify-center">
           {data.imageUrl ? (
-            <img
-              src={data.imageUrl}
-              alt={data.name}
-              className="h-20 w-20 shrink-0 rounded-2xl border border-border object-cover bg-muted"
-            />
+            <ProductImage src={data.imageUrl} alt={data.name} />
           ) : (
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted">
               <Leaf size={28} strokeWidth={1.5} className="text-muted-foreground" />
