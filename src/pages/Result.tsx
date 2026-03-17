@@ -647,6 +647,48 @@ const Result = () => {
             <FlagCard key={ing.name} ingredient={ing} flaggedCategories={flaggedCategories} />
           ))}
         </div>
+
+        {/* Health Insight Card */}
+        {(() => {
+          const seedOilCount = data.flagged.filter((i) => i.category === "Seed Oil").length;
+          const hasDyes = data.flagged.some((i) => i.category === "Artificial Dye");
+          const hasSweeteners = data.flagged.some((i) => i.category === "Artificial Sweetener");
+          const hasHighRisk = seedOilCount >= 2 || hasDyes || hasSweeteners;
+          const onlyUltraProcessed = data.flagged.length > 0 && data.flagged.every((i) => i.category === "Ultra-Processed");
+
+          let tip = "";
+          if (data.score >= 75 && !hasHighRisk) {
+            tip = "This is a clean product by Pure standards. No seed oils, artificial dyes, or high-risk additives detected.";
+          } else if (data.score < 40) {
+            tip = "This product has several concerning ingredients. Consider making it an occasional treat rather than a daily staple, and check the clean alternatives below.";
+          } else if (seedOilCount >= 2) {
+            tip = "This product contains multiple seed oils. Regular consumption can raise your omega-6 to omega-3 ratio, which research links to chronic inflammation. Try swapping to products cooked in avocado or coconut oil.";
+          } else if (hasDyes) {
+            tip = "Artificial dyes like Red 40 and Yellow 5 have been linked to hyperactivity in children and allergic reactions. These are banned or require warning labels in the EU but still allowed in the US.";
+          } else if (hasSweeteners) {
+            tip = "Artificial sweeteners may disrupt your gut microbiome and insulin response over time. Consider products sweetened with honey, maple syrup, or monk fruit instead.";
+          } else if (onlyUltraProcessed && data.score > 60) {
+            tip = "This product scores reasonably well but contains some processing agents. Fine in moderation — just be mindful of daily frequency.";
+          }
+
+          if (!tip) return null;
+
+          return (
+            <div className="mt-6 rounded-2xl bg-card border border-border overflow-hidden">
+              <div className="flex gap-3 p-4" style={{ borderLeft: "4px solid #1D9E75" }}>
+                <span className="mt-0.5 shrink-0 text-lg">💡</span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
+                    Health insight
+                  </p>
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">
+                    {tip}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* CTA */}
