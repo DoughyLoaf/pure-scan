@@ -12,6 +12,7 @@ export interface ProductResult {
   score: number;
   ingredientsRaw: string;
   flagged: FlaggedIngredient[];
+  imageUrl?: string;
 }
 
 // [display name, regex, category, deduction, explanation]
@@ -133,8 +134,9 @@ export async function fetchProduct(barcode: string): Promise<ProductResult | nul
   const brand = product.brands || "Unknown Brand";
   const ingredientsRaw = product.ingredients_text || "";
 
+  const imageUrl = product.image_front_url || product.image_front_small_url || undefined;
   const { score, flagged } = analyzeIngredients(ingredientsRaw);
-  const result: ProductResult = { name, brand, score, ingredientsRaw, flagged };
+  const result: ProductResult = { name, brand, score, ingredientsRaw, flagged, imageUrl };
 
   cacheProduct(barcode, result);
   return result;

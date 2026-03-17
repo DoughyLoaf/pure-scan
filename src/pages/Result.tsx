@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2, ChevronDown, Info, X, ScanLine } from "lucide-react";
+import { ArrowLeft, Share2, ChevronDown, Info, X, ScanLine, Leaf } from "lucide-react";
 import { isPro, getScansRemaining, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 import ResultSkeleton from "@/components/ResultSkeleton";
@@ -236,15 +236,30 @@ const Result = () => {
 
       {/* Product Info + Score */}
       <div className="mt-6 flex flex-col items-center px-6">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-          {data.brand}
-        </p>
-        <h1
-          className="mt-1 text-center text-xl font-semibold"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {data.name}
-        </h1>
+        <div className="flex items-center gap-4 w-full justify-center">
+          {data.imageUrl ? (
+            <img
+              src={data.imageUrl}
+              alt={data.name}
+              className="h-20 w-20 shrink-0 rounded-2xl border border-border object-cover bg-muted"
+            />
+          ) : (
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted">
+              <Leaf size={28} strokeWidth={1.5} className="text-muted-foreground" />
+            </div>
+          )}
+          <div className="flex flex-col">
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              {data.brand}
+            </p>
+            <h1
+              className="mt-1 text-lg font-semibold leading-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {data.name}
+            </h1>
+          </div>
+        </div>
         <div className="mt-6">
           <ScoreRing score={data.score} />
         </div>
