@@ -24,12 +24,15 @@ const BottomNav = () => {
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex flex-col items-center gap-0.5 py-3 px-2 text-[10px] font-medium transition-colors ${
+              className={`relative flex flex-col items-center gap-0.5 py-3 px-2 text-[10px] font-medium transition-colors ${
                 active
                   ? "text-primary"
                   : "text-muted-foreground"
               }`}
             >
+              {active && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-5 rounded-full bg-primary" />
+              )}
               <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
               <span>{label}</span>
             </button>
