@@ -10,24 +10,30 @@ interface Alternative {
 }
 
 // ── Category inference from product name ───────────────────────────
-function inferCategory(name: string): string {
-  const n = name.toLowerCase();
+function inferCategory(name: string, brand?: string): string {
+  const n = (name + " " + (brand || "")).toLowerCase();
+  if (/energy|monster|red\s*bull|celsius|bang|reign|rockstar|g\s*fuel|zoa/i.test(n)) return "energy drinks";
+  if (/frozen\s*(meal|dinner|entrée|entree|pizza|burrito)|lean\s*cuisine|stouffer|amy.*kitchen|hot\s*pocket/i.test(n)) return "frozen meals";
+  if (/peanut\s*butter|almond\s*butter|nut\s*butter|sun\s*butter|cashew\s*butter/i.test(n)) return "peanut butter";
+  if (/dressing|vinaigrette|ranch|caesar/i.test(n)) return "salad dressing";
+  if (/cooking\s*oil|olive\s*oil|avocado\s*oil|coconut\s*oil|canola|vegetable\s*oil/i.test(n)) return "cooking oil";
   if (/chip|crisp|frito|dorito|cheeto/i.test(n)) return "chips";
-  if (/cereal|granola|flake|crunch|cheerio|loop/i.test(n)) return "cereal";
+  if (/cereal|granola|flake|crunch|cheerio|loop|oatmeal/i.test(n)) return "cereal";
   if (/cracker|pretzel|goldfish/i.test(n)) return "crackers";
-  if (/yogurt|yoghurt/i.test(n)) return "yogurt";
+  if (/yogurt|yoghurt|kefir/i.test(n)) return "yogurt";
   if (/soda|cola|pop|sprite|fanta|dew/i.test(n)) return "soda";
   if (/juice/i.test(n)) return "juice";
   if (/cookie|oreo|biscuit/i.test(n)) return "cookies";
   if (/candy|gumm|skittle|starburst|sour/i.test(n)) return "candy";
-  if (/ice\s*cream|gelato|frozen/i.test(n)) return "ice cream";
-  if (/bread|bun|bagel|muffin|toast/i.test(n)) return "bread";
-  if (/sauce|ketchup|mustard|dressing|mayo/i.test(n)) return "sauce";
-  if (/bar|cliff|kind|rxbar|protein/i.test(n)) return "bars";
-  if (/noodle|ramen|pasta/i.test(n)) return "noodles";
+  if (/ice\s*cream|gelato/i.test(n)) return "ice cream";
+  if (/bread|bun|bagel|muffin|toast|tortilla|wrap/i.test(n)) return "bread";
+  if (/sauce|ketchup|mustard|mayo|bbq/i.test(n)) return "sauce";
+  if (/bar|cliff|kind|rxbar|protein\s*bar|granola\s*bar|snack\s*bar/i.test(n)) return "bars";
+  if (/noodle|ramen|pasta|mac.*cheese/i.test(n)) return "noodles";
   if (/milk|oat.*milk|almond.*milk/i.test(n)) return "milk";
   if (/chocolate/i.test(n)) return "chocolate";
   if (/popcorn/i.test(n)) return "popcorn";
+  if (/frozen/i.test(n)) return "frozen meals";
   return "snack";
 }
 
@@ -37,9 +43,9 @@ type AltDB = Record<string, Record<string, Alternative[]>>;
 const ALT_DB: AltDB = {
   chips: {
     "Seed Oil": [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil. No seed oils or artificial additives." },
+      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil." },
       { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola. No artificial flavors." },
+      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola with no artificial flavors." },
     ],
     "Ultra-Processed": [
       { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt." },
@@ -47,40 +53,40 @@ const ALT_DB: AltDB = {
       { name: "Good Health Avocado Oil Chips", brand: "Good Health", score: 76, reason: "Clean label with avocado oil and natural seasonings." },
     ],
     _default: [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil. No seed oils or artificial additives." },
+      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil." },
       { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
       { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt." },
     ],
   },
   cereal: {
     "Artificial Dye": [
-      { name: "Nature's Path Organic Sunrise", brand: "Nature's Path", score: 88, reason: "No artificial dyes or sweeteners. USDA Organic certified." },
-      { name: "Cascadian Farm Organic Granola", brand: "Cascadian Farm", score: 83, reason: "Whole grain oats with no synthetic colors or flavors." },
-      { name: "Barbara's Puffins", brand: "Barbara's", score: 80, reason: "No artificial dyes, preservatives, or high-fructose corn syrup." },
+      { name: "Nature's Path Organic Sunrise", brand: "Nature's Path", score: 85, reason: "USDA Organic with no synthetic dyes, colors, or sweeteners." },
+      { name: "Cascadian Farm Organic Granola", brand: "Cascadian Farm", score: 82, reason: "Whole grain oats with no synthetic colors or flavors." },
+      { name: "Barbara's Puffins", brand: "Barbara's", score: 79, reason: "No artificial dyes, preservatives, or high-fructose corn syrup." },
     ],
     "Artificial Sweetener": [
-      { name: "Ezekiel 4:9 Sprouted Cereal", brand: "Food For Life", score: 92, reason: "Sprouted grains, no added sugar, zero artificial sweeteners." },
-      { name: "Nature's Path Organic Heritage Flakes", brand: "Nature's Path", score: 86, reason: "Naturally sweetened with organic cane sugar. No artificial sweeteners." },
-      { name: "One Degree Organic Sprouted Oat O's", brand: "One Degree", score: 84, reason: "Sprouted oats with minimal sweetening and full traceability." },
+      { name: "Ezekiel 4:9 Sprouted Cereal", brand: "Food For Life", score: 89, reason: "Sprouted grains with no added sugar or artificial sweeteners." },
+      { name: "Nature's Path Heritage Flakes", brand: "Nature's Path", score: 84, reason: "Naturally sweetened with organic cane sugar, no artificial sweeteners." },
+      { name: "One Degree Sprouted Oat O's", brand: "One Degree", score: 82, reason: "Sprouted oats with minimal sweetening and full ingredient traceability." },
     ],
     _default: [
-      { name: "Nature's Path Organic Sunrise", brand: "Nature's Path", score: 88, reason: "No artificial dyes or sweeteners. USDA Organic certified." },
-      { name: "Ezekiel 4:9 Sprouted Cereal", brand: "Food For Life", score: 92, reason: "Sprouted grains with no added sugar or preservatives." },
-      { name: "Cascadian Farm Organic Granola", brand: "Cascadian Farm", score: 83, reason: "Whole grain oats with no synthetic colors or flavors." },
+      { name: "Nature's Path Organic Sunrise", brand: "Nature's Path", score: 85, reason: "USDA Organic with no synthetic dyes, colors, or sweeteners." },
+      { name: "Ezekiel 4:9 Sprouted Cereal", brand: "Food For Life", score: 89, reason: "Sprouted grains with no added sugar or preservatives." },
+      { name: "Cascadian Farm Organic Granola", brand: "Cascadian Farm", score: 82, reason: "Whole grain oats with no synthetic colors or flavors." },
     ],
   },
   crackers: {
     _default: [
-      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 85, reason: "Grain-free with clean ingredients and no seed oils." },
-      { name: "Mary's Gone Crackers", brand: "Mary's Gone", score: 82, reason: "Organic whole grain, gluten-free, and no artificial additives." },
-      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 80, reason: "Paleo-friendly with cassava flour and no seed oils." },
+      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 84, reason: "Grain-free with clean ingredients and no seed oils." },
+      { name: "Mary's Gone Crackers", brand: "Mary's Gone", score: 81, reason: "Organic whole grain, gluten-free, and no artificial additives." },
+      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and no seed oils." },
     ],
   },
   yogurt: {
     _default: [
-      { name: "Siggi's Icelandic Yogurt", brand: "Siggi's", score: 90, reason: "Simple ingredients, high protein, low sugar, no artificial additives." },
-      { name: "Stonyfield Organic Yogurt", brand: "Stonyfield", score: 86, reason: "USDA Organic with no artificial flavors, colors, or sweeteners." },
-      { name: "Fage Total Plain Greek Yogurt", brand: "Fage", score: 88, reason: "Only milk and cultures. Zero additives or preservatives." },
+      { name: "Siggi's Icelandic Yogurt", brand: "Siggi's", score: 88, reason: "Simple ingredients with high protein, low sugar, and no additives." },
+      { name: "Stonyfield Organic Whole Milk Yogurt", brand: "Stonyfield", score: 85, reason: "USDA Organic with no artificial flavors, colors, or sweeteners." },
+      { name: "Fage Total Plain Greek Yogurt", brand: "Fage", score: 87, reason: "Only milk and live cultures — zero additives or preservatives." },
     ],
   },
   soda: {
@@ -90,98 +96,172 @@ const ALT_DB: AltDB = {
       { name: "Zevia Zero Calorie Soda", brand: "Zevia", score: 72, reason: "Sweetened with stevia instead of artificial sweeteners." },
     ],
   },
+  "energy drinks": {
+    "Artificial Sweetener": [
+      { name: "Celsius Live Fit", brand: "Celsius", score: 72, reason: "Sweetened with sucralose-free formula using stevia and erythritol." },
+      { name: "Guayakí Yerba Mate", brand: "Guayakí", score: 82, reason: "Organic yerba mate with natural caffeine and no artificial sweeteners." },
+      { name: "Hiball Organic Energy Water", brand: "Hiball", score: 79, reason: "USDA Organic with zero sugar and no artificial sweeteners or dyes." },
+    ],
+    "Artificial Dye": [
+      { name: "RUNA Clean Energy", brand: "RUNA", score: 80, reason: "Brewed from guayusa leaves with no artificial dyes or flavors." },
+      { name: "Matchabar Hustle Matcha Energy", brand: "Matchabar", score: 77, reason: "Matcha-based energy with natural color and no synthetic dyes." },
+      { name: "Guayakí Yerba Mate", brand: "Guayakí", score: 82, reason: "Organic yerba mate with naturally derived color and caffeine." },
+    ],
+    _default: [
+      { name: "Guayakí Yerba Mate", brand: "Guayakí", score: 82, reason: "Organic yerba mate with natural caffeine and no artificial additives." },
+      { name: "Hiball Organic Energy Water", brand: "Hiball", score: 79, reason: "USDA Organic sparkling energy with zero sugar and no dyes." },
+      { name: "RUNA Clean Energy", brand: "RUNA", score: 80, reason: "Brewed from guayusa leaves with no artificial colors or sweeteners." },
+    ],
+  },
+  "frozen meals": {
+    "Seed Oil": [
+      { name: "Amy's Organic Mexican Casserole", brand: "Amy's Kitchen", score: 76, reason: "Made with organic ingredients and no seed oils or preservatives." },
+      { name: "Saffron Road Chicken Tikka Masala", brand: "Saffron Road", score: 73, reason: "Antibiotic-free chicken cooked without canola or soybean oil." },
+      { name: "Primal Kitchen Frozen Bowl", brand: "Primal Kitchen", score: 78, reason: "Paleo-friendly with avocado oil and no seed oils." },
+    ],
+    "Preservative": [
+      { name: "Daily Harvest Flatbread", brand: "Daily Harvest", score: 81, reason: "Plant-based with no preservatives, just whole frozen vegetables." },
+      { name: "Tattooed Chef Plant-Based Bowl", brand: "Tattooed Chef", score: 74, reason: "Simple plant ingredients with no synthetic preservatives." },
+      { name: "Amy's Organic Light & Lean", brand: "Amy's Kitchen", score: 76, reason: "USDA Organic frozen entrée with no artificial preservatives." },
+    ],
+    _default: [
+      { name: "Amy's Organic Mexican Casserole", brand: "Amy's Kitchen", score: 76, reason: "Made with organic ingredients and no seed oils or preservatives." },
+      { name: "Primal Kitchen Frozen Bowl", brand: "Primal Kitchen", score: 78, reason: "Paleo-friendly with avocado oil and clean protein sources." },
+      { name: "Daily Harvest Flatbread", brand: "Daily Harvest", score: 81, reason: "Plant-based with no preservatives, just whole frozen vegetables." },
+    ],
+  },
+  bars: {
+    "Seed Oil": [
+      { name: "RXBAR Chocolate Sea Salt", brand: "RXBAR", score: 86, reason: "Egg whites, dates, nuts, and cocoa — no seed oils or fillers." },
+      { name: "Larabar Apple Pie", brand: "Larabar", score: 88, reason: "Only dates, almonds, and apples with no oils added." },
+      { name: "That's It Apple + Mango Bar", brand: "That's It", score: 89, reason: "Two ingredients: real fruit pressed into a bar, nothing else." },
+    ],
+    "Artificial Sweetener": [
+      { name: "KIND Dark Chocolate Nuts & Sea Salt", brand: "KIND", score: 76, reason: "Whole nuts with dark chocolate and no artificial sweeteners." },
+      { name: "GoMacro MacroBar", brand: "GoMacro", score: 80, reason: "Organic plant-based bar sweetened with brown rice syrup, not sucralose." },
+      { name: "RXBAR Peanut Butter", brand: "RXBAR", score: 85, reason: "Sweetened only by dates with no artificial sweeteners." },
+    ],
+    _default: [
+      { name: "RXBAR Chocolate Sea Salt", brand: "RXBAR", score: 86, reason: "Egg whites, dates, nuts, and cocoa — no additives at all." },
+      { name: "Larabar Apple Pie", brand: "Larabar", score: 88, reason: "Only dates, almonds, and apples with nothing artificial." },
+      { name: "KIND Dark Chocolate Nuts & Sea Salt", brand: "KIND", score: 76, reason: "Whole nuts with dark chocolate and no artificial sweeteners." },
+    ],
+  },
+  "peanut butter": {
+    "Seed Oil": [
+      { name: "Once Again Organic Peanut Butter", brand: "Once Again", score: 89, reason: "Just dry-roasted organic peanuts and salt — no palm or seed oils." },
+      { name: "Teddie All Natural Peanut Butter", brand: "Teddie", score: 86, reason: "Only peanuts and salt, no hydrogenated oils or added sugar." },
+      { name: "Santa Cruz Organic Peanut Butter", brand: "Santa Cruz", score: 84, reason: "USDA Organic with only roasted peanuts — zero seed oils." },
+    ],
+    _default: [
+      { name: "Once Again Organic Peanut Butter", brand: "Once Again", score: 89, reason: "Just dry-roasted organic peanuts and salt — no palm or seed oils." },
+      { name: "Teddie All Natural Peanut Butter", brand: "Teddie", score: 86, reason: "Only peanuts and salt, no hydrogenated oils or added sugar." },
+      { name: "Santa Cruz Organic Peanut Butter", brand: "Santa Cruz", score: 84, reason: "USDA Organic with only roasted peanuts — zero added oils." },
+    ],
+  },
+  "salad dressing": {
+    "Seed Oil": [
+      { name: "Primal Kitchen Caesar Dressing", brand: "Primal Kitchen", score: 84, reason: "Made with avocado oil instead of canola or soybean oil." },
+      { name: "Tessemae's Organic Ranch", brand: "Tessemae's", score: 81, reason: "Cold-pressed organic sunflower oil base with no canola oil." },
+      { name: "Sir Kensington's Vinaigrette", brand: "Sir Kensington's", score: 78, reason: "Sunflower oil and real ingredients with no artificial preservatives." },
+    ],
+    _default: [
+      { name: "Primal Kitchen Caesar Dressing", brand: "Primal Kitchen", score: 84, reason: "Made with avocado oil instead of canola or soybean oil." },
+      { name: "Tessemae's Organic Ranch", brand: "Tessemae's", score: 81, reason: "Cold-pressed organic oil base with no seed oils or sugar." },
+      { name: "Sir Kensington's Vinaigrette", brand: "Sir Kensington's", score: 78, reason: "Real ingredients with no artificial preservatives or colors." },
+    ],
+  },
+  "cooking oil": {
+    _default: [
+      { name: "Chosen Foods Avocado Oil", brand: "Chosen Foods", score: 89, reason: "Naturally refined avocado oil with a high smoke point and no additives." },
+      { name: "Nutiva Organic Coconut Oil", brand: "Nutiva", score: 86, reason: "USDA Organic virgin coconut oil with no refining or bleaching." },
+      { name: "California Olive Ranch Extra Virgin", brand: "California Olive Ranch", score: 88, reason: "100% California-grown olives, cold-pressed with no seed oil blending." },
+    ],
+  },
   cookies: {
     _default: [
-      { name: "Simple Mills Crunchy Cookies", brand: "Simple Mills", score: 80, reason: "Almond flour base with coconut oil instead of seed oils." },
-      { name: "Hu Kitchen Chocolate Chip Cookies", brand: "Hu Kitchen", score: 78, reason: "No refined sugar, seed oils, or artificial flavors." },
-      { name: "Partake Crunchy Cookies", brand: "Partake", score: 76, reason: "Allergy-friendly with clean ingredients and no artificial additives." },
+      { name: "Simple Mills Crunchy Cookies", brand: "Simple Mills", score: 79, reason: "Almond flour base with coconut oil instead of seed oils." },
+      { name: "Hu Kitchen Chocolate Chip Cookies", brand: "Hu Kitchen", score: 77, reason: "No refined sugar, seed oils, or artificial flavors." },
+      { name: "Partake Crunchy Cookies", brand: "Partake", score: 75, reason: "Allergy-friendly with clean ingredients and no artificial additives." },
     ],
   },
   candy: {
     _default: [
-      { name: "Unreal Dark Chocolate Gems", brand: "Unreal", score: 77, reason: "No artificial dyes, corn syrup, or synthetic flavors." },
-      { name: "YumEarth Organic Fruit Snacks", brand: "YumEarth", score: 74, reason: "USDA Organic with real fruit juice and no artificial dyes." },
-      { name: "SmartSweets Gummy Bears", brand: "SmartSweets", score: 70, reason: "Low sugar with plant-based sweeteners and no artificial colors." },
-    ],
-  },
-  bars: {
-    _default: [
-      { name: "RXBAR Chocolate Sea Salt", brand: "RXBAR", score: 88, reason: "Minimal ingredients: egg whites, dates, nuts, cocoa. No additives." },
-      { name: "Larabar Apple Pie", brand: "Larabar", score: 90, reason: "Only dates, almonds, and apples. Nothing artificial." },
-      { name: "KIND Dark Chocolate Nuts & Sea Salt", brand: "KIND", score: 78, reason: "Whole nuts with dark chocolate. No artificial sweeteners." },
+      { name: "Unreal Dark Chocolate Gems", brand: "Unreal", score: 76, reason: "No artificial dyes, corn syrup, or synthetic flavors." },
+      { name: "YumEarth Organic Fruit Snacks", brand: "YumEarth", score: 73, reason: "USDA Organic with real fruit juice and no artificial dyes." },
+      { name: "SmartSweets Gummy Bears", brand: "SmartSweets", score: 69, reason: "Low sugar with plant-based sweeteners and no artificial colors." },
     ],
   },
   sauce: {
     _default: [
-      { name: "Primal Kitchen Ketchup", brand: "Primal Kitchen", score: 85, reason: "Sweetened with dates. No high-fructose corn syrup or seed oils." },
-      { name: "Sir Kensington's Classic Ketchup", brand: "Sir Kensington's", score: 82, reason: "Non-GMO tomatoes with no artificial preservatives." },
-      { name: "Tessemae's Organic Dressing", brand: "Tessemae's", score: 80, reason: "Cold-pressed olive oil base with no seed oils or sugar." },
+      { name: "Primal Kitchen Ketchup", brand: "Primal Kitchen", score: 84, reason: "Sweetened with dates with no high-fructose corn syrup or seed oils." },
+      { name: "Sir Kensington's Classic Ketchup", brand: "Sir Kensington's", score: 81, reason: "Non-GMO tomatoes with no artificial preservatives." },
+      { name: "Tessemae's Organic Dressing", brand: "Tessemae's", score: 79, reason: "Cold-pressed olive oil base with no seed oils or added sugar." },
     ],
   },
   bread: {
     _default: [
-      { name: "Ezekiel 4:9 Sprouted Bread", brand: "Food For Life", score: 92, reason: "Sprouted whole grains with no preservatives or added sugar." },
-      { name: "Dave's Killer Bread", brand: "Dave's", score: 80, reason: "USDA Organic whole grains with no artificial preservatives." },
-      { name: "Base Culture Keto Bread", brand: "Base Culture", score: 78, reason: "Grain-free, gluten-free with almond and coconut flour." },
+      { name: "Ezekiel 4:9 Sprouted Bread", brand: "Food For Life", score: 89, reason: "Sprouted whole grains with no preservatives or added sugar." },
+      { name: "Dave's Killer Bread Thin-Sliced", brand: "Dave's Killer Bread", score: 79, reason: "USDA Organic whole grains with no artificial preservatives." },
+      { name: "Base Culture Keto Bread", brand: "Base Culture", score: 77, reason: "Grain-free and gluten-free with almond and coconut flour." },
     ],
   },
   chocolate: {
     _default: [
-      { name: "Hu Chocolate Bar", brand: "Hu Kitchen", score: 88, reason: "Simple cacao, coconut sugar. No soy lecithin or seed oils." },
-      { name: "Alter Eco Dark Chocolate", brand: "Alter Eco", score: 85, reason: "Fair trade organic cacao with minimal clean ingredients." },
-      { name: "Endangered Species Dark Chocolate", brand: "Endangered Species", score: 82, reason: "Ethically sourced cacao with no artificial flavors." },
+      { name: "Hu Simple Dark Chocolate", brand: "Hu Kitchen", score: 87, reason: "Simple cacao and coconut sugar with no soy lecithin or seed oils." },
+      { name: "Alter Eco Dark Chocolate", brand: "Alter Eco", score: 84, reason: "Fair trade organic cacao with minimal clean ingredients." },
+      { name: "Endangered Species Dark Chocolate", brand: "Endangered Species", score: 81, reason: "Ethically sourced cacao with no artificial flavors or emulsifiers." },
     ],
   },
   popcorn: {
     _default: [
-      { name: "Lesser Evil Organic Popcorn", brand: "Lesser Evil", score: 84, reason: "Popped in coconut oil with Himalayan salt. No seed oils." },
-      { name: "Skinny Pop Original Popcorn", brand: "Skinny Pop", score: 76, reason: "Simple ingredients with sunflower oil — cleaner than most." },
-      { name: "Boom Chicka Pop Sea Salt", brand: "Angie's", score: 78, reason: "Simple popcorn with sunflower oil and sea salt." },
+      { name: "Lesser Evil Organic Popcorn", brand: "Lesser Evil", score: 83, reason: "Popped in coconut oil with Himalayan salt and no seed oils." },
+      { name: "Boom Chicka Pop Sea Salt", brand: "Angie's", score: 77, reason: "Simple popcorn with sunflower oil and sea salt." },
+      { name: "Skinny Pop Original Popcorn", brand: "Skinny Pop", score: 75, reason: "Three ingredients: popcorn, oil, and salt — cleaner than most." },
     ],
   },
   noodles: {
     _default: [
-      { name: "Jovial Organic Brown Rice Pasta", brand: "Jovial", score: 90, reason: "Single ingredient organic brown rice. Gluten-free, no additives." },
-      { name: "Banza Chickpea Pasta", brand: "Banza", score: 85, reason: "High protein chickpea pasta with no artificial ingredients." },
-      { name: "Lotus Foods Organic Ramen", brand: "Lotus Foods", score: 82, reason: "Organic rice ramen with no MSG or artificial flavors." },
+      { name: "Jovial Organic Brown Rice Pasta", brand: "Jovial", score: 88, reason: "Single ingredient organic brown rice — gluten-free with no additives." },
+      { name: "Banza Chickpea Pasta", brand: "Banza", score: 84, reason: "High protein chickpea pasta with no artificial ingredients." },
+      { name: "Lotus Foods Organic Ramen", brand: "Lotus Foods", score: 81, reason: "Organic rice ramen with no MSG or artificial flavors." },
     ],
   },
   milk: {
     _default: [
-      { name: "Malk Unsweetened Almond Milk", brand: "Malk", score: 92, reason: "Only filtered water, almonds, and salt. No gums or oils." },
-      { name: "Three Trees Organic Almond Milk", brand: "Three Trees", score: 90, reason: "Clean label with no carrageenan, gums, or preservatives." },
-      { name: "Califia Farms Unsweetened Oat Milk", brand: "Califia Farms", score: 78, reason: "No artificial flavors or high-fructose sweeteners." },
+      { name: "Malk Unsweetened Almond Milk", brand: "Malk", score: 89, reason: "Only filtered water, almonds, and salt — no gums or oils." },
+      { name: "Three Trees Organic Almond Milk", brand: "Three Trees", score: 87, reason: "Clean label with no carrageenan, gums, or preservatives." },
+      { name: "Califia Farms Unsweetened Oat Milk", brand: "Califia Farms", score: 77, reason: "No artificial flavors or high-fructose sweeteners." },
     ],
   },
   juice: {
     _default: [
-      { name: "Lakewood Organic Pure Juice", brand: "Lakewood", score: 88, reason: "100% organic pressed juice with no added sugar or preservatives." },
-      { name: "Suja Organic Cold-Pressed Juice", brand: "Suja", score: 85, reason: "Cold-pressed organic fruits and vegetables. Nothing artificial." },
-      { name: "Evolution Fresh Cold-Pressed Juice", brand: "Evolution Fresh", score: 80, reason: "No added sugars or artificial flavors. High-pressure processed." },
+      { name: "Lakewood Organic Pure Juice", brand: "Lakewood", score: 86, reason: "100% organic pressed juice with no added sugar or preservatives." },
+      { name: "Suja Organic Cold-Pressed Juice", brand: "Suja", score: 84, reason: "Cold-pressed organic fruits and vegetables — nothing artificial." },
+      { name: "Evolution Fresh Cold-Pressed Juice", brand: "Evolution Fresh", score: 79, reason: "No added sugars or artificial flavors, high-pressure processed." },
     ],
   },
   "ice cream": {
     _default: [
-      { name: "Three Twins Organic Ice Cream", brand: "Three Twins", score: 82, reason: "USDA Organic with simple dairy and no artificial additives." },
-      { name: "NadaMoo! Dairy-Free Ice Cream", brand: "NadaMoo!", score: 78, reason: "Coconut milk base with organic ingredients. No artificial colors." },
-      { name: "Jeni's Splendid Ice Cream", brand: "Jeni's", score: 76, reason: "Small-batch with grass-fed dairy and no artificial stabilizers." },
+      { name: "Three Twins Organic Ice Cream", brand: "Three Twins", score: 81, reason: "USDA Organic with simple dairy and no artificial additives." },
+      { name: "NadaMoo! Dairy-Free Ice Cream", brand: "NadaMoo!", score: 77, reason: "Coconut milk base with organic ingredients and no artificial colors." },
+      { name: "Jeni's Splendid Ice Cream", brand: "Jeni's", score: 75, reason: "Small-batch with grass-fed dairy and no artificial stabilizers." },
     ],
   },
   snack: {
     _default: [
-      { name: "Simple Mills Snack Crackers", brand: "Simple Mills", score: 85, reason: "Almond flour base with no seed oils or artificial additives." },
-      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 80, reason: "Paleo-friendly with cassava flour and clean ingredients." },
-      { name: "RXBAR Protein Bar", brand: "RXBAR", score: 88, reason: "Minimal ingredients: egg whites, dates, nuts. No additives." },
+      { name: "Simple Mills Snack Crackers", brand: "Simple Mills", score: 84, reason: "Almond flour base with no seed oils or artificial additives." },
+      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and clean ingredients." },
+      { name: "RXBAR Protein Bar", brand: "RXBAR", score: 86, reason: "Minimal ingredients: egg whites, dates, and nuts — no additives." },
     ],
   },
 };
 
 function getAlternatives(product: ProductResult): Alternative[] {
-  const category = inferCategory(product.name);
+  const category = inferCategory(product.name, product.brand);
   const categoryAlts = ALT_DB[category] || ALT_DB.snack;
   const flaggedCategories = [...new Set(product.flagged.map((f) => f.category))];
 
-  // Try to find alternatives matching the first flagged category
   for (const cat of flaggedCategories) {
     if (categoryAlts[cat]) return categoryAlts[cat];
   }
