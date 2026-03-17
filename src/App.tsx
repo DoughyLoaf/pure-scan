@@ -13,6 +13,8 @@ import Result from "./pages/Result";
 import Alternatives from "./pages/Alternatives";
 import Profile from "./pages/Profile";
 import Paywall from "./pages/Paywall";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
