@@ -278,11 +278,10 @@ const Scanner = () => {
           />
 
           {!scannerStarted && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55 px-6 text-center">
-              <span className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-                Tap to start camera
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
+                Tap to scan
               </span>
-              <p className="mt-3 text-xs text-white/70">Camera permission must start from a tap on some phones.</p>
             </div>
           )}
 
