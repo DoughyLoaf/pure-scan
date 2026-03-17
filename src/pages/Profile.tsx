@@ -10,6 +10,8 @@ const DIETARY_OPTIONS = [
   { id: "artificial-dyes", label: "Avoid artificial dyes", icon: "🎨" },
   { id: "artificial-sweeteners", label: "Avoid artificial sweeteners", icon: "🧪" },
   { id: "preservatives", label: "Avoid preservatives", icon: "🧂" },
+  { id: "added-sugars", label: "Avoid added sugars", icon: "🍬" },
+  { id: "emulsifiers", label: "Avoid emulsifiers", icon: "🧴" },
   { id: "gluten", label: "Avoid gluten", icon: "🌾" },
   { id: "dairy", label: "Avoid dairy", icon: "🥛" },
 ];
