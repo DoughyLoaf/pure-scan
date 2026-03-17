@@ -75,6 +75,8 @@ const PREF_CATEGORY_MAP: Record<string, string> = {
   "artificial-dyes": "Artificial Dye",
   "artificial-sweeteners": "Artificial Sweetener",
   "preservatives": "Preservative",
+  "added-sugars": "Added Sugar",
+  "emulsifiers": "Emulsifier",
 };
 
 const getUserFlaggedCategories = (): Set<string> => {
