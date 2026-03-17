@@ -325,6 +325,13 @@ const Index = () => {
         </div>
       )}
 
+      {/* Weekly Health Summary */}
+      {totalScanned > 0 && (
+        <div className="mt-4 sm:mt-5">
+          <WeeklySummary history={history} />
+        </div>
+      )}
+
       {/* Recent Scans */}
       <div className="mt-6 sm:mt-8">
         <h3 className="mb-3 sm:mb-4 text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
