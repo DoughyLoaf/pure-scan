@@ -209,12 +209,12 @@ const Profile = () => {
               <ChevronRight size={16} className="text-muted-foreground" />
             </button>
             <div className="mx-4 border-t border-border" />
-            <button className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted">
+            <button onClick={() => navigate("/privacy")} className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted">
               <span>Privacy Policy</span>
               <ChevronRight size={16} className="text-muted-foreground" />
             </button>
             <div className="mx-4 border-t border-border" />
-            <button className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted">
+            <button onClick={() => navigate("/terms")} className="flex items-center justify-between px-4 py-3 text-left text-sm transition-colors active:bg-muted">
               <span>Terms of Service</span>
               <ChevronRight size={16} className="text-muted-foreground" />
             </button>
