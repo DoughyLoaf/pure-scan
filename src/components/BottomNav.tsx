@@ -1,10 +1,9 @@
-import { Home, ScanLine, BarChart3, Repeat2, User } from "lucide-react";
+import { Home, ScanLine, Repeat2, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
   { icon: Home, label: "Home", path: "/" },
   { icon: ScanLine, label: "Scan", path: "/scanner" },
-  { icon: BarChart3, label: "Result", path: "/result" },
   { icon: Repeat2, label: "Alternatives", path: "/alternatives" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
