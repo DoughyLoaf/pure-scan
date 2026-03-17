@@ -309,6 +309,17 @@ const Index = () => {
         </p>
       </div>
 
+      {/* Personalized greeting */}
+      <p className="mb-4 text-[13px] text-muted-foreground">
+        {(() => {
+          const h = new Date().getHours();
+          const greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+          return totalFlagged > 0
+            ? `${greeting}. You've flagged ${totalFlagged} harmful ingredient${totalFlagged === 1 ? "" : "s"} so far.`
+            : `${greeting}. Start scanning to build your clean eating profile.`;
+        })()}
+      </p>
+
       {/* Hero CTA */}
       <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-5 sm:px-6 py-8 sm:py-10">
         <div className="mb-4 sm:mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-accent">
