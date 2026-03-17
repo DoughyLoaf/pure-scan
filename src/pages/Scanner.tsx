@@ -253,6 +253,12 @@ const Scanner = () => {
       )}
 
       <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors active:bg-white/20"
+        >
+          <X size={20} strokeWidth={1.8} />
+        </button>
         <span className="text-sm font-semibold tracking-tight text-white/90" style={{ fontFamily: "var(--font-display)" }}>
           Pure<span className="text-primary">.</span> Scanner
         </span>
