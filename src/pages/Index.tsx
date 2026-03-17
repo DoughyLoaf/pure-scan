@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
 import { useMemo } from "react";
+import Onboarding from "@/components/Onboarding";
 
 const scoreColor = (score: number) => {
   if (score < 40) return "hsl(0, 72%, 51%)";
