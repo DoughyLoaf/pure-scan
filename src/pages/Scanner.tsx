@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan, getScansRemaining } from "@/lib/scan-limits";
+import { isWaterProduct, findWaterBrand } from "@/lib/water-database";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
@@ -185,17 +186,21 @@ const Scanner = () => {
   }, [blocked, handleDetectedBarcode, scannerStarted, showManual, stopScanner]);
 
   const navigateWithScan = (product: ProductResult) => {
-    if (!canScan()) {
-      navigate("/paywall");
-      return;
-    }
+    if (!canScan()) { navigate("/paywall"); return; }
     const { remaining } = recordScan();
     addScanToHistory(product);
-
     setShowPulse(true);
-    setTimeout(() => {
-      navigate("/result", { state: { product, scansRemaining: remaining } });
-    }, 350);
+    const categories = (product as any).categoriesRaw ?? "";
+    if (isWaterProduct(product.name, categories)) {
+      const waterBrand = findWaterBrand(product.name, product.brand);
+      setTimeout(() => {
+        navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
+      }, 350);
+    } else {
+      setTimeout(() => {
+        navigate("/result", { state: { product, scansRemaining: remaining } });
+      }, 350);
+    }
   };
 
 
@@ -243,7 +248,7 @@ const Scanner = () => {
       {scanLoading && (
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <Loader2 size={32} className="animate-spin text-primary" />
-          <p className="mt-3 text-sm font-medium text-white/80">Looking up product…</p>
+          <p className="mt-3 text-sm font-medium text-white/80">Identifying product…</p>
         </div>
       )}
 
