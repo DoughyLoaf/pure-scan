@@ -65,3 +65,10 @@
     transform: scale(0.97);
   }
 }
+
+/* Hide Lovable badge completely */
+a[href*="lovable.dev"][target="_blank"],
+div[id*="lovable"],
+iframe[src*="lovable"] {
+  display: none !important;
+}
