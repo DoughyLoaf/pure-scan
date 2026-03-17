@@ -28,18 +28,6 @@ const CornerBrackets = () => {
   );
 };
 
-const DEMO_DATA: ProductResult = {
-  name: "Lay's Classic Chips",
-  brand: "Lay's",
-  score: 34,
-  ingredientsRaw: "Potatoes, Vegetable Oil (Sunflower, Corn, and/or Canola Oil), Salt, Maltodextrin, Natural and Artificial Flavor",
-  flagged: [
-    { name: "Canola Oil", category: "Seed Oil", deduction: 15, reason: "A processed seed oil high in omega-6 fatty acids, linked to inflammation.", labelText: "Canola Oil" },
-    { name: "Soybean Oil", category: "Seed Oil", deduction: 15, reason: "A highly refined seed oil associated with oxidative stress and inflammatory responses.", labelText: "Soybean Oil" },
-    { name: "Maltodextrin", category: "Ultra-Processed", deduction: 5, reason: "A highly processed starch that spikes blood sugar faster than table sugar.", labelText: "Maltodextrin" },
-    { name: "Artificial Flavor", category: "Ultra-Processed", deduction: 5, reason: "A synthetic chemical blend with undisclosed compounds used to mimic natural taste.", labelText: "Natural and Artificial Flavor" },
-  ],
-};
 
 const Scanner = () => {
   const navigate = useNavigate();
@@ -210,13 +198,6 @@ const Scanner = () => {
     }, 350);
   };
 
-  const handleDemoScan = () => {
-    if (blocked) {
-      navigate("/paywall");
-      return;
-    }
-    navigateWithScan(DEMO_DATA);
-  };
 
   const handleBarcodeLookup = async () => {
     if (!barcode.trim()) return;
@@ -297,11 +278,10 @@ const Scanner = () => {
           />
 
           {!scannerStarted && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55 px-6 text-center">
-              <span className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-                Tap to start camera
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
+                Tap to scan
               </span>
-              <p className="mt-3 text-xs text-white/70">Camera permission must start from a tap on some phones.</p>
             </div>
           )}
 
@@ -318,11 +298,11 @@ const Scanner = () => {
         </button>
 
         {cameraError ? (
-          <p className="mt-8 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+          <p className="mt-5 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
         ) : scannerStarted ? (
-          <p className="mt-8 text-sm font-medium text-white/70">Point at any barcode</p>
+          <p className="mt-5 text-sm text-white/50">Point at any barcode</p>
         ) : (
-          <p className="mt-8 text-sm font-medium text-white/70">Tap the viewfinder to start the camera</p>
+          <p className="mt-5 text-xs text-white/40">Tap the viewfinder to start the camera</p>
         )}
         <button
           onClick={() => { setShowManual(true); setNotFound(false); }}
@@ -395,25 +375,15 @@ const Scanner = () => {
         </div>
       )}
 
-      {/* Demo button */}
-      {!showManual && (
+      {/* Blocked upgrade button */}
+      {!showManual && blocked && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
-          {blocked ? (
-            <button
-              onClick={() => navigate("/paywall")}
-              className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors"
-            >
-              No scans left — Upgrade
-            </button>
-          ) : (
-            <button
-              onClick={handleDemoScan}
-              disabled={showPulse}
-              className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-70"
-            >
-              Demo: Scan a product
-            </button>
-          )}
+          <button
+            onClick={() => navigate("/paywall")}
+            className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors"
+          >
+            No scans left — Upgrade
+          </button>
         </div>
       )}
     </div>
