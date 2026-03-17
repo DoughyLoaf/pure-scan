@@ -1,4 +1,4 @@
-import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus, Candy, Droplets } from "lucide-react";
+import { ScanLine, Clock, ChevronRight, Flame, ShieldCheck, AlertTriangle, FlaskConical, TrendingUp, TrendingDown, Minus, Candy, Droplets, Palette } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getScanHistory } from "@/lib/scan-history";
 import type { ScanHistoryEntry } from "@/lib/scan-history";
@@ -144,7 +144,7 @@ const SEED_OIL_CAT = "Seed Oil";
 const ADDITIVE_CATS = new Set(["Artificial Dye", "Artificial Sweetener", "Preservative"]);
 
 const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
-  const { seedOilCount, additiveCount, sugarCount, emulsifierCount, avgScore, trend } = useMemo(() => {
+  const { seedOilCount, additiveCount, sugarCount, emulsifierCount, dyeCount, avgScore, trend } = useMemo(() => {
     const thisWeek = getWeekScans(history, 0);
     const lastWeek = getWeekScans(history, 1);
 
@@ -152,6 +152,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
     let additives = 0;
     let sugars = 0;
     let emulsifiers = 0;
+    let dyes = 0;
     let scoreSum = 0;
     thisWeek.forEach((e) => {
       scoreSum += e.product.score;
@@ -160,6 +161,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
         if (ADDITIVE_CATS.has(f.category)) additives++;
         if (f.category === "Added Sugar") sugars++;
         if (f.category === "Emulsifier") emulsifiers++;
+        if (f.category === "Artificial Dye") dyes++;
       });
     });
 
@@ -171,7 +173,7 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
     }
 
     const t = thisWeek.length === 0 ? "neutral" : avg > lastAvg ? "up" : avg < lastAvg ? "down" : "neutral";
-    return { seedOilCount: oils, additiveCount: additives, sugarCount: sugars, emulsifierCount: emulsifiers, avgScore: avg, trend: t as "up" | "down" | "neutral" };
+    return { seedOilCount: oils, additiveCount: additives, sugarCount: sugars, emulsifierCount: emulsifiers, dyeCount: dyes, avgScore: avg, trend: t as "up" | "down" | "neutral" };
   }, [history]);
 
   const avgColor = avgScore < 40 ? "hsl(0, 72%, 51%)" : avgScore < 75 ? "hsl(38, 92%, 50%)" : "hsl(var(--primary))";
@@ -254,6 +256,19 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
           </p>
         </div>
 
+        {/* Artificial Dyes */}
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "hsl(350, 70%, 50%, 0.1)" }}>
+            <Palette size={18} style={{ color: "hsl(350, 70%, 50%)" }} />
+          </div>
+          <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+            {dyeCount}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground leading-tight">
+            Artificial dyes
+          </p>
+        </div>
+
         {/* Average Pure Score */}
         <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-3 sm:p-4">
           <svg width="36" height="36" viewBox="0 0 36 36">
@@ -274,9 +289,6 @@ const WeeklySummary = ({ history }: { history: ScanHistoryEntry[] }) => {
             Avg Score
           </p>
         </div>
-
-        {/* Empty spacer for balanced grid */}
-        <div />
       </div>
     </div>
   );
