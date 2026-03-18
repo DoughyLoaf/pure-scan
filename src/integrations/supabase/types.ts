@@ -231,6 +231,7 @@ export type Database = {
           platform: string | null
           product_name: string | null
           pure_score: number | null
+          scan_method: string | null
           session_id: string
           water_brand: string | null
         }
@@ -249,6 +250,7 @@ export type Database = {
           platform?: string | null
           product_name?: string | null
           pure_score?: number | null
+          scan_method?: string | null
           session_id: string
           water_brand?: string | null
         }
@@ -267,6 +269,7 @@ export type Database = {
           platform?: string | null
           product_name?: string | null
           pure_score?: number | null
+          scan_method?: string | null
           session_id?: string
           water_brand?: string | null
         }
