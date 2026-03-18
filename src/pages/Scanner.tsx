@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, ImagePlus, Trash2, ArrowLeft } from "lucide-react";
+import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Trash2 } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
@@ -9,6 +9,7 @@ import { isWaterProduct, findWaterBrand } from "@/lib/water-database";
 import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/session";
+import { toast } from "sonner";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
@@ -32,6 +33,16 @@ const CornerBrackets = () => {
   );
 };
 
+/* ─── Label Scan Overlay ─── */
+const LabelOverlay = () => (
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div className="w-[85%] h-[70%] rounded-2xl border-2 border-primary/60 flex items-center justify-center">
+      <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
+        Point at ingredient list
+      </span>
+    </div>
+  </div>
+);
 
 /* ─── Not Found Panel with submission form ─── */
 function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handleManualIngredients }: {
@@ -79,7 +90,6 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
         Analyze ingredients
       </button>
 
-      {/* Community submission */}
       {!submitted ? (
         <>
           <button
@@ -91,25 +101,12 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
           </button>
           {showSubmit && (
             <div className="mt-2 space-y-2 animate-fade-in">
-              <input
-                type="text"
-                placeholder="Product name"
-                value={subName}
-                onChange={(e) => setSubName(e.target.value)}
-                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <input
-                type="text"
-                placeholder="Brand (optional)"
-                value={subBrand}
-                onChange={(e) => setSubBrand(e.target.value)}
-                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={!subName.trim()}
-                className="w-full rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors disabled:opacity-50 hover:bg-primary/20"
-              >
+              <input type="text" placeholder="Product name" value={subName} onChange={(e) => setSubName(e.target.value)}
+                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <input type="text" placeholder="Brand (optional)" value={subBrand} onChange={(e) => setSubBrand(e.target.value)}
+                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <button onClick={handleSubmit} disabled={!subName.trim()}
+                className="w-full rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors disabled:opacity-50 hover:bg-primary/20">
                 Submit product info
               </button>
             </div>
@@ -126,160 +123,9 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
 }
 
 
-/* ─── Photo Scan Component ─── */
-function PhotoScanPanel({ onResult, onClose }: {
-  onResult: (product: ProductResult) => void;
-  onClose: () => void;
-}) {
-  const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-
-  const addImage = (file: File) => {
-    if (images.length >= 2) return;
-    const preview = URL.createObjectURL(file);
-    setImages(prev => [...prev, { file, preview }]);
-    setError(null);
-  };
-
-  const removeImage = (index: number) => {
-    setImages(prev => {
-      URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
-    });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) addImage(file);
-    e.target.value = "";
-  };
-
-  const fileToBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-  const handleAnalyze = async () => {
-    if (images.length === 0) return;
-    setProcessing(true);
-    setError(null);
-
-    try {
-      const base64Images = await Promise.all(images.map(img => fileToBase64(img.file)));
-
-      const { data, error: fnError } = await supabase.functions.invoke("extract-ingredients", {
-        body: { images: base64Images },
-      });
-
-      if (fnError || !data) {
-        throw new Error(fnError?.message || "Failed to process images");
-      }
-
-      const ingredientsRaw = data.ingredients_raw || "";
-      if (!ingredientsRaw.trim()) {
-        setError("Couldn't read ingredients from the photo. Try a clearer image or enter them manually.");
-        setProcessing(false);
-        return;
-      }
-
-      const { score, flagged } = analyzeIngredients(ingredientsRaw);
-      const product: ProductResult = {
-        name: data.product_name || "Photo Scan",
-        brand: data.brand || "—",
-        score,
-        ingredientsRaw,
-        flagged,
-      };
-
-      onResult(product);
-    } catch (err: any) {
-      console.error("Photo scan error:", err);
-      setError("Something went wrong. Please try again or enter ingredients manually.");
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-x-0 top-0 bottom-16 z-40 flex flex-col bg-background">
-      <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
-        <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground transition-colors active:bg-muted/70">
-          <ArrowLeft size={20} strokeWidth={1.8} />
-        </button>
-        <span className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Photo Scan</span>
-        <div className="w-10" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6 pt-6 pb-4">
-        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-          <p className="text-sm font-medium text-foreground">📸 Take a clear photo of the ingredient list</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            You can add up to 2 photos — one of the front label and one of the ingredients. Make sure the text is readable and well-lit.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          {images.map((img, i) => (
-            <div key={i} className="relative aspect-[3/4] rounded-xl overflow-hidden border border-border bg-muted">
-              <img src={img.preview} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
-              <button onClick={() => removeImage(i)} className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md">
-                <Trash2 size={14} />
-              </button>
-              <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] font-medium text-white">
-                {i === 0 ? "Front label" : "Ingredients"}
-              </span>
-            </div>
-          ))}
-
-          {images.length < 2 && (
-            <div className="flex flex-col gap-2 aspect-[3/4]">
-              <button onClick={() => cameraInputRef.current?.click()} className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 text-primary transition-colors active:bg-primary/10">
-                <Camera size={24} />
-                <span className="text-xs font-medium">Take photo</span>
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted text-muted-foreground transition-colors active:bg-muted/70">
-                <ImagePlus size={24} />
-                <span className="text-xs font-medium">Upload image</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-
-        {error && (
-          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+16px)]">
-        <button
-          onClick={handleAnalyze}
-          disabled={images.length === 0 || processing}
-          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {processing ? (
-            <><Loader2 size={18} className="animate-spin" /> Analyzing ingredients…</>
-          ) : (
-            `Analyze ${images.length === 0 ? "photos" : images.length === 1 ? "1 photo" : "2 photos"}`
-          )}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-
 const Scanner = () => {
   const navigate = useNavigate();
+  const [scanMode, setScanMode] = useState<"barcode" | "label">("barcode");
   const [torch, setTorch] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [barcode, setBarcode] = useState("");
@@ -291,12 +137,15 @@ const Scanner = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scannerStarted, setScannerStarted] = useState(false);
-  const [showPhotoScan, setShowPhotoScan] = useState(false);
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [showManualIngredientEntry, setShowManualIngredientEntry] = useState(false);
+  const [manualIngredientsLabel, setManualIngredientsLabel] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const scanningRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     setBlocked(!canScan());
@@ -322,9 +171,7 @@ const Scanner = () => {
   }, []);
 
   useEffect(() => {
-    if (showManual) {
-      stopScanner();
-    }
+    if (showManual) stopScanner();
   }, [showManual, stopScanner]);
 
   useEffect(() => {
@@ -339,42 +186,62 @@ const Scanner = () => {
     }
   }, [torch]);
 
+  // When switching modes, stop barcode decoder but keep camera alive if label mode
+  useEffect(() => {
+    if (scanMode === "label") {
+      // Stop the barcode reader but keep camera stream
+      scanningRef.current = false;
+      readerRef.current?.reset();
+      readerRef.current = null;
+    }
+  }, [scanMode]);
+
+  const navigateWithScan = (product: ProductResult, method: 'barcode' | 'photo' | 'manual' = 'barcode') => {
+    if (!canScan()) { navigate("/paywall"); return; }
+    const { remaining } = recordScan();
+    addScanToHistory(product);
+    setShowPulse(true);
+    const categories = (product as any).categoriesRaw ?? "";
+    const isWater = isWaterProduct(product.name, categories);
+    const waterBrand = isWater ? findWaterBrand(product.name, product.brand) : undefined;
+
+    trackScan(product, lastBarcode.current || undefined, isWater, waterBrand?.name, method);
+
+    if (isWater) {
+      setTimeout(() => {
+        navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
+      }, 350);
+    } else {
+      setTimeout(() => {
+        navigate("/result", { state: { product, scansRemaining: remaining } });
+      }, 350);
+    }
+  };
+
   const handleDetectedBarcode = useCallback(
     async (code: string) => {
-      // Haptic vibration feedback
-      if (navigator.vibrate) {
-        navigator.vibrate([100, 50, 100]);
-      }
-
-      // Short beep sound
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       try {
         const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 1200;
-        gain.gain.value = 0.15;
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 1200; gain.gain.value = 0.15;
         osc.start();
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
         osc.stop(ctx.currentTime + 0.15);
-      } catch {
-        // Audio not available, skip
-      }
+      } catch {}
 
       stopScanner();
 
-      if (!canScan()) {
-        navigate("/paywall");
-        return;
-      }
+      if (!canScan()) { navigate("/paywall"); return; }
 
       setScanLoading(true);
       try {
         lastBarcode.current = code;
         const product = await fetchProduct(code);
         if (product) {
-          navigateWithScan(product);
+          navigateWithScan(product, 'barcode');
         } else {
           trackUnknownBarcode(code);
           setScanLoading(false);
@@ -393,89 +260,159 @@ const Scanner = () => {
     [navigate, stopScanner]
   );
 
-  const startScanner = useCallback(async () => {
-    if (blocked || showManual || scannerStarted || !videoRef.current) return;
-
+  const startCamera = useCallback(async () => {
+    if (blocked || showManual || !videoRef.current) return;
+    if (streamRef.current) return; // already running
     setCameraError(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-        },
+        video: { facingMode: { ideal: "environment" } },
       });
-
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
-
-      const hints = new Map();
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.CODE_39,
-      ]);
-
-      const reader = new BrowserMultiFormatReader(hints, 500);
-      readerRef.current = reader;
-      scanningRef.current = true;
       setScannerStarted(true);
-
-      reader.decodeFromStream(stream, videoRef.current, (result) => {
-        if (!scanningRef.current || !result) return;
-        scanningRef.current = false;
-        void handleDetectedBarcode(result.getText());
-      });
     } catch (error) {
       console.error("Camera start error:", error);
-      stopScanner();
       setCameraError("Camera access failed. Tap again or use manual entry.");
     }
-  }, [blocked, handleDetectedBarcode, scannerStarted, showManual, stopScanner]);
+  }, [blocked, showManual]);
+
+  const startBarcodeDecoder = useCallback(async () => {
+    if (!streamRef.current || !videoRef.current || scanningRef.current) return;
+
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+    ]);
+
+    const reader = new BrowserMultiFormatReader(hints, 500);
+    readerRef.current = reader;
+    scanningRef.current = true;
+
+    reader.decodeFromStream(streamRef.current, videoRef.current, (result) => {
+      if (!scanningRef.current || !result) return;
+      scanningRef.current = false;
+      void handleDetectedBarcode(result.getText());
+    });
+  }, [handleDetectedBarcode]);
+
+  const startScanner = useCallback(async () => {
+    if (blocked || showManual || scannerStarted || !videoRef.current) return;
+    await startCamera();
+    if (scanMode === "barcode") {
+      // Small delay to ensure camera is fully started
+      setTimeout(() => startBarcodeDecoder(), 100);
+    }
+  }, [blocked, showManual, scannerStarted, scanMode, startCamera, startBarcodeDecoder]);
 
   const lastBarcode = useRef<string>("");
 
-  const navigateWithScan = (product: ProductResult) => {
+  /* ─── Photo Capture (Label Scan mode) ─── */
+  const capturePhoto = useCallback(async () => {
+    if (!videoRef.current || !streamRef.current || photoProcessing) return;
     if (!canScan()) { navigate("/paywall"); return; }
-    const { remaining } = recordScan();
-    addScanToHistory(product);
-    setShowPulse(true);
-    const categories = (product as any).categoriesRaw ?? "";
-    const isWater = isWaterProduct(product.name, categories);
-    const waterBrand = isWater ? findWaterBrand(product.name, product.brand) : undefined;
 
-    // Fire-and-forget analytics
-    trackScan(product, lastBarcode.current || undefined, isWater, waterBrand?.name);
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const base64 = canvas.toDataURL("image/jpeg", 0.85);
 
-    if (isWater) {
-      setTimeout(() => {
-        navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
-      }, 350);
-    } else {
-      setTimeout(() => {
-        navigate("/result", { state: { product, scansRemaining: remaining } });
-      }, 350);
+    setPhotoProcessing(true);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("extract-ingredients", {
+        body: { images: [base64] },
+      });
+
+      if (fnError || !data) throw new Error(fnError?.message || "Failed to process image");
+
+      if (data.error === "no_label_visible") {
+        toast.error("Point camera directly at the ingredient list");
+        setPhotoProcessing(false);
+        return;
+      }
+
+      if (data.confidence === "low") {
+        toast.error("Image unclear — try better lighting");
+        setPhotoProcessing(false);
+        return;
+      }
+
+      const ingredientsRaw = data.ingredients_raw || "";
+      if (!ingredientsRaw.trim()) {
+        toast.error("Couldn't read ingredients. Try a clearer photo.");
+        setPhotoProcessing(false);
+        return;
+      }
+
+      const { score, flagged } = analyzeIngredients(ingredientsRaw);
+      const product: ProductResult = {
+        name: data.product_name || "Photo Scanned Product",
+        brand: data.brand || "Unknown Brand",
+        score,
+        ingredientsRaw,
+        flagged,
+        categoriesRaw: "",
+      };
+
+      // Enrich database: store in product_submissions for products without barcodes
+      try {
+        supabase.from("product_submissions").insert({
+          session_id: getSessionId(),
+          barcode: "PHOTO_SCAN_" + Date.now(),
+          product_name: product.name,
+          brand: product.brand,
+          ingredients_raw: ingredientsRaw,
+          status: "auto_extracted",
+          notes: `confidence: ${data.confidence || "unknown"}, source: photo_scan`,
+        } as any).then(() => {});
+      } catch { /* fire & forget */ }
+
+      lastBarcode.current = "";
+      navigateWithScan(product, 'photo');
+    } catch (err: any) {
+      console.error("Photo scan error:", err);
+      const msg = err?.message?.includes("AbortError") || err?.message?.includes("timeout")
+        ? "Scan taking too long — try again"
+        : "Could not read label — try better lighting or type manually";
+      toast.error(msg);
+      setPhotoProcessing(false);
     }
-  };
+  }, [navigate, photoProcessing]);
 
+  /* ─── Manual ingredient entry for label mode ─── */
+  const handleManualLabelIngredients = () => {
+    if (!manualIngredientsLabel.trim()) return;
+    const { score, flagged } = analyzeIngredients(manualIngredientsLabel);
+    const product: ProductResult = {
+      name: "Manual Entry",
+      brand: "—",
+      score,
+      ingredientsRaw: manualIngredientsLabel,
+      flagged,
+    };
+    navigateWithScan(product, 'manual');
+  };
 
   const handleBarcodeLookup = async () => {
     if (!barcode.trim()) return;
-    if (blocked) {
-      navigate("/paywall");
-      return;
-    }
+    if (blocked) { navigate("/paywall"); return; }
     setLoading(true);
     setNotFound(false);
     try {
       lastBarcode.current = barcode.trim();
       const product = await fetchProduct(barcode.trim());
       if (product) {
-        navigateWithScan(product);
+        navigateWithScan(product, 'barcode');
       } else {
         trackUnknownBarcode(barcode.trim());
         setNotFound(true);
@@ -498,31 +435,39 @@ const Scanner = () => {
       ingredientsRaw: manualIngredients,
       flagged,
     };
-    navigateWithScan(product);
+    navigateWithScan(product, 'manual');
   };
 
-  if (showPhotoScan) {
-    return (
-      <PhotoScanPanel
-        onResult={(product) => navigateWithScan(product)}
-        onClose={() => setShowPhotoScan(false)}
-      />
-    );
-  }
+  const handleModeSwitch = (mode: "barcode" | "label") => {
+    if (mode === scanMode) return;
+    setScanMode(mode);
+    setShowManual(false);
+    setShowManualIngredientEntry(false);
+    setNotFound(false);
+
+    if (mode === "barcode" && scannerStarted) {
+      startBarcodeDecoder();
+    }
+  };
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-16 z-40 flex flex-col bg-[#0a0a0a]">
+      <canvas ref={canvasRef} className="hidden" />
+
       {showPulse && (
         <div className="absolute inset-0 z-[100] animate-scan-pulse bg-primary/40 pointer-events-none" />
       )}
 
-      {scanLoading && (
+      {(scanLoading || photoProcessing) && (
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <Loader2 size={32} className="animate-spin text-primary" />
-          <p className="mt-3 text-sm font-medium text-white/80">Identifying product…</p>
+          <p className="mt-3 text-sm font-medium text-white/80">
+            {photoProcessing ? "Reading ingredients…" : "Identifying product…"}
+          </p>
         </div>
       )}
 
+      {/* Header */}
       <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
         <button
           onClick={() => navigate(-1)}
@@ -542,22 +487,23 @@ const Scanner = () => {
         </button>
       </div>
 
+      {/* Viewfinder */}
       <div className="flex flex-1 flex-col items-center justify-center px-10">
         <button
           type="button"
           onClick={() => void startScanner()}
-          disabled={scannerStarted || blocked || scanLoading}
+          disabled={scannerStarted || blocked || scanLoading || photoProcessing}
           className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-sm disabled:cursor-default"
           aria-label="Start camera scanner"
         >
-          <CornerBrackets />
+          {scanMode === "barcode" ? <CornerBrackets /> : null}
           <video
             ref={videoRef}
             className="absolute inset-0 h-full w-full object-cover"
-            playsInline
-            muted
-            autoPlay
+            playsInline muted autoPlay
           />
+
+          {scanMode === "label" && scannerStarted && <LabelOverlay />}
 
           {!scannerStarted && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -567,74 +513,113 @@ const Scanner = () => {
             </div>
           )}
 
-          <div className="absolute inset-x-3 inset-y-3 overflow-hidden pointer-events-none">
-            <div
-              className="absolute left-0 right-0 h-[2px] animate-scan-line"
-              style={{
-                background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 30%, hsl(var(--primary)) 70%, transparent 100%)",
-                opacity: 0.7,
-              }}
-            />
-          </div>
-          <div className="absolute inset-0 rounded-sm bg-white/[0.02] pointer-events-none" />
+          {scanMode === "barcode" && (
+            <>
+              <div className="absolute inset-x-3 inset-y-3 overflow-hidden pointer-events-none">
+                <div
+                  className="absolute left-0 right-0 h-[2px] animate-scan-line"
+                  style={{
+                    background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 30%, hsl(var(--primary)) 70%, transparent 100%)",
+                    opacity: 0.7,
+                  }}
+                />
+              </div>
+              <div className="absolute inset-0 rounded-sm bg-white/[0.02] pointer-events-none" />
+            </>
+          )}
         </button>
 
-        {cameraError ? (
-          <p className="mt-5 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
-        ) : scannerStarted ? (
-          <p className="mt-5 text-sm text-white/50">Point at any barcode</p>
-        ) : (
-          <p className="mt-5 text-xs text-white/40">Tap the viewfinder to start the camera</p>
-        )}
-        <div className="mt-3 flex items-center gap-3">
+        {/* Mode pill selector */}
+        <div className="mt-5 flex rounded-full border border-white/20 overflow-hidden">
           <button
-            onClick={() => { setShowManual(true); setNotFound(false); }}
-            className="text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+            onClick={() => handleModeSwitch("barcode")}
+            className={`px-4 py-2 text-xs font-semibold transition-colors ${
+              scanMode === "barcode"
+                ? "bg-primary text-primary-foreground"
+                : "bg-transparent text-white/60 active:text-white/80"
+            }`}
           >
-            Enter barcode manually
+            📷 Barcode
           </button>
-          <span className="text-xs text-white/20">or</span>
           <button
-            onClick={() => setShowPhotoScan(true)}
-            className="flex items-center gap-1.5 text-xs text-primary/70 underline underline-offset-2 transition-colors active:text-primary"
+            onClick={() => handleModeSwitch("label")}
+            className={`px-4 py-2 text-xs font-semibold transition-colors ${
+              scanMode === "label"
+                ? "bg-primary text-primary-foreground"
+                : "bg-transparent text-white/60 active:text-white/80"
+            }`}
           >
-            <Camera size={12} />
-            Scan with photo
+            🔍 Label Scan
           </button>
         </div>
+
+        {/* Mode-specific status text & actions */}
+        {scanMode === "barcode" ? (
+          <>
+            {cameraError ? (
+              <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+            ) : scannerStarted ? (
+              <p className="mt-4 text-sm text-white/50">Point at any barcode</p>
+            ) : (
+              <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
+            )}
+            <button
+              onClick={() => { setShowManual(true); setNotFound(false); }}
+              className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+            >
+              Enter barcode manually
+            </button>
+          </>
+        ) : (
+          <>
+            {cameraError ? (
+              <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+            ) : scannerStarted ? (
+              <p className="mt-4 text-sm text-white/50">📸 Take a clear photo of the ingredient list</p>
+            ) : (
+              <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
+            )}
+
+            {/* Capture button */}
+            {scannerStarted && !photoProcessing && (
+              <button
+                onClick={capturePhoto}
+                disabled={photoProcessing}
+                className="mt-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white transition-all active:scale-95 active:bg-white/40"
+                aria-label="Capture photo"
+              >
+                <Camera size={24} />
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowManualIngredientEntry(true)}
+              className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+            >
+              Type ingredients manually
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Manual entry panel */}
-      {showManual && (
+      {/* Manual barcode entry panel */}
+      {showManual && scanMode === "barcode" && (
         <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-              Enter barcode
-            </h3>
+            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Enter barcode</h3>
             <button onClick={() => { setShowManual(false); setNotFound(false); }} className="text-muted-foreground active:text-foreground">
               <X size={20} strokeWidth={1.8} />
             </button>
           </div>
-
           <div className="flex gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 0028400064057"
-              value={barcode}
+            <input type="text" inputMode="numeric" placeholder="e.g. 0028400064057" value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
-              className="flex-1 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <button
-              onClick={handleBarcodeLookup}
-              disabled={loading || !barcode.trim()}
-              className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
-            >
+              className="flex-1 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <button onClick={handleBarcodeLookup} disabled={loading || !barcode.trim()}
+              className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50">
               {loading ? <Loader2 size={18} className="animate-spin" /> : "Look up"}
             </button>
           </div>
-
-          {/* Loading skeleton for barcode lookup */}
           {loading && (
             <div className="mt-4 space-y-3">
               <div className="animate-pulse rounded-xl bg-muted h-4 w-3/4" />
@@ -642,25 +627,41 @@ const Scanner = () => {
               <div className="animate-pulse rounded-xl bg-muted h-12 w-full" />
             </div>
           )}
-
           {notFound && (
-            <NotFoundPanel
-              barcode={barcode}
-              manualIngredients={manualIngredients}
-              setManualIngredients={setManualIngredients}
-              handleManualIngredients={handleManualIngredients}
-            />
+            <NotFoundPanel barcode={barcode} manualIngredients={manualIngredients}
+              setManualIngredients={setManualIngredients} handleManualIngredients={handleManualIngredients} />
           )}
         </div>
       )}
 
+      {/* Manual ingredient entry panel for label mode */}
+      {showManualIngredientEntry && scanMode === "label" && (
+        <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Type ingredients</h3>
+            <button onClick={() => setShowManualIngredientEntry(false)} className="text-muted-foreground active:text-foreground">
+              <X size={20} strokeWidth={1.8} />
+            </button>
+          </div>
+          <textarea
+            placeholder="Paste or type the ingredient list here…"
+            value={manualIngredientsLabel}
+            onChange={(e) => setManualIngredientsLabel(e.target.value)}
+            rows={4}
+            className="w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <button onClick={handleManualLabelIngredients} disabled={!manualIngredientsLabel.trim()}
+            className="mt-3 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50">
+            Analyze ingredients
+          </button>
+        </div>
+      )}
+
       {/* Blocked upgrade button */}
-      {!showManual && blocked && (
+      {!showManual && !showManualIngredientEntry && blocked && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
-          <button
-            onClick={() => navigate("/paywall")}
-            className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors"
-          >
+          <button onClick={() => navigate("/paywall")}
+            className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors">
             No scans left — Upgrade
           </button>
         </div>

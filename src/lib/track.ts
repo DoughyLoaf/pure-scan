@@ -3,8 +3,8 @@ import { getSessionId, getPlatform, getAppVersion } from "./session";
 import type { ProductResult } from "./scoring";
 
 /** Record a successful product scan — fire & forget */
-export function trackScan(product: ProductResult, barcode?: string, isWater = false, waterBrand?: string): void {
-  if (import.meta.env.DEV) console.log('[Pure] trackScan fired:', product.name);
+export function trackScan(product: ProductResult, barcode?: string, isWater = false, waterBrand?: string, scanMethod: 'barcode' | 'photo' | 'manual' = 'barcode'): void {
+  if (import.meta.env.DEV) console.log('[Pure] trackScan fired:', product.name, 'method:', scanMethod);
   try {
     const flaggedCategories = [...new Set(product.flagged.map((f) => f.category))];
     const flaggedIngredients = product.flagged.map((f) => f.name);
@@ -26,7 +26,8 @@ export function trackScan(product: ProductResult, barcode?: string, isWater = fa
         water_brand: waterBrand || null,
         app_version: getAppVersion(),
         platform: getPlatform(),
-      })
+        scan_method: scanMethod,
+      } as any)
       .then(() => {});
 
     // Atomic session counter increment
