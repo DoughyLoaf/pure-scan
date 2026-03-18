@@ -196,13 +196,13 @@ const Scanner = () => {
     }
   }, [scanMode]);
 
-  const navigateWithScan = (product: ProductResult, method: 'barcode' | 'photo' | 'manual' = 'barcode') => {
+  const navigateWithScan = (product: ProductResult, method: 'barcode' | 'photo' | 'manual' = 'barcode', forceIsWater?: boolean) => {
     if (!canScan()) { navigate("/paywall"); return; }
     const { remaining } = recordScan();
     addScanToHistory(product);
     setShowPulse(true);
     const categories = (product as any).categoriesRaw ?? "";
-    const isWater = isWaterProduct(product.name, categories);
+    const isWater = forceIsWater === true || isWaterProduct(product.name, categories);
     const waterBrand = isWater ? findWaterBrand(product.name, product.brand) : undefined;
 
     trackScan(product, lastBarcode.current || undefined, isWater, waterBrand?.name, method);
