@@ -10,7 +10,9 @@ import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/session";
 import { toast } from "sonner";
+import { processPhotoScan, submitUserCorrection } from "@/lib/photo-scan";
 import type { ProductResult } from "@/lib/scoring";
+import type { PhotoScanResult } from "@/lib/photo-scan";
 
 const CORNER_SIZE = 28;
 const CORNER_WEIGHT = 3;
