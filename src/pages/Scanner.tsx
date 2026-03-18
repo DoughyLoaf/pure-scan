@@ -669,8 +669,37 @@ const Scanner = () => {
         </div>
       )}
 
+      {/* LAYER 3: Medium-confidence confirmation panel */}
+      {pendingConfirmation && (
+        <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Confirm ingredients</h3>
+            <button onClick={handleRetakePhoto} className="text-muted-foreground active:text-foreground">
+              <X size={20} strokeWidth={1.8} />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">We read this label — does this look right?</p>
+          <textarea
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            rows={5}
+            className="w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <div className="mt-3 flex gap-2">
+            <button onClick={handleConfirmIngredients}
+              className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors flex items-center justify-center gap-2">
+              <Check size={16} /> Looks good
+            </button>
+            <button onClick={handleRetakePhoto}
+              className="flex-1 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-medium text-foreground transition-colors">
+              Retake photo
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Blocked upgrade button */}
-      {!showManual && !showManualIngredientEntry && blocked && (
+      {!showManual && !showManualIngredientEntry && !pendingConfirmation && blocked && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
           <button onClick={() => navigate("/paywall")}
             className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors">
