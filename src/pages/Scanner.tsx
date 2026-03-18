@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Package, ListChecks } from "lucide-react";
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { Html5Qrcode } from "html5-qrcode";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan } from "@/lib/scan-limits";
@@ -231,7 +231,7 @@ const Scanner = () => {
   const notFoundBarcode = useRef<string>("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const html5QrRef = useRef<Html5Qrcode | null>(null);
   const scanningRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -242,34 +242,49 @@ const Scanner = () => {
     setBlocked(!canScan());
   }, []);
 
-  /* ─── Stop camera & decoder ─── */
-  const stopScanner = useCallback(() => {
+  /* ─── Stop html5-qrcode scanner ─── */
+  const stopBarcodeScanner = useCallback(async () => {
     scanningRef.current = false;
-    try { readerRef.current?.reset(); } catch {}
-    readerRef.current = null;
+    if (html5QrRef.current) {
+      try {
+        const state = html5QrRef.current.getState();
+        if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+          await html5QrRef.current.stop();
+        }
+      } catch {}
+      try { html5QrRef.current.clear(); } catch {}
+      html5QrRef.current = null;
+    }
+  }, []);
 
+  /* ─── Stop camera stream ─── */
+  const stopCameraStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try { track.stop(); } catch {}
       });
       streamRef.current = null;
     }
-
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.srcObject = null;
     }
-
-    setTorch(false);
-    setScannerStarted(false);
   }, []);
 
+  /* ─── Stop everything ─── */
+  const stopScanner = useCallback(async () => {
+    await stopBarcodeScanner();
+    stopCameraStream();
+    setTorch(false);
+    setScannerStarted(false);
+  }, [stopBarcodeScanner, stopCameraStream]);
+
   useEffect(() => {
-    if (showManual && photoScanStep === "idle") stopScanner();
+    if (showManual && photoScanStep === "idle") { void stopScanner(); }
   }, [showManual, stopScanner, photoScanStep]);
 
   useEffect(() => {
-    return () => stopScanner();
+    return () => { void stopScanner(); };
   }, [stopScanner]);
 
   /* ─── Torch toggle ─── */
@@ -280,15 +295,6 @@ const Scanner = () => {
       track.applyConstraints({ advanced: [{ torch } as MediaTrackConstraintSet] }).catch(() => {});
     }
   }, [torch]);
-
-  /* ─── Stop barcode decoder when switching to label ─── */
-  useEffect(() => {
-    if (scanMode === "label") {
-      scanningRef.current = false;
-      try { readerRef.current?.reset(); } catch {}
-      readerRef.current = null;
-    }
-  }, [scanMode]);
 
   const navigateWithScan = (product: ProductResult, method: 'barcode' | 'photo' | 'manual' = 'barcode', forceIsWater?: boolean) => {
     if (!canScan()) { navigate("/paywall"); return; }
@@ -326,7 +332,7 @@ const Scanner = () => {
         osc.stop(ctx.currentTime + 0.15);
       } catch {}
 
-      stopScanner();
+      void stopScanner();
 
       if (!canScan()) { navigate("/paywall"); return; }
 
@@ -356,35 +362,30 @@ const Scanner = () => {
     [navigate, stopScanner]
   );
 
-  /* ─── Start camera with mobile-optimized constraints ─── */
-  const startCamera = useCallback(async () => {
+  /* ─── Start camera for label scan / photo capture (raw getUserMedia) ─── */
+  const startCameraStream = useCallback(async () => {
     if (blocked || !videoRef.current) return;
-    if (streamRef.current) return;
+    if (streamRef.current) return; // already running
     setCameraError(null);
 
     try {
-      // Request camera with mobile-optimized constraints
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
           facingMode: { ideal: "environment" },
           width: { ideal: 1280, min: 640 },
           height: { ideal: 720, min: 480 },
-          // Continuous autofocus for mobile barcode scanning
-          ...(navigator.userAgent.match(/Android/i) ? { focusMode: "continuous" as any } : {}),
         },
       });
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Ensure video plays - critical for iOS Safari
         videoRef.current.setAttribute("playsinline", "true");
         videoRef.current.setAttribute("autoplay", "true");
         videoRef.current.muted = true;
-        
+
         await videoRef.current.play().catch(() => {
-          // iOS Safari sometimes needs a retry
           return new Promise<void>((resolve) => {
             setTimeout(async () => {
               try { await videoRef.current?.play(); } catch {}
@@ -392,7 +393,7 @@ const Scanner = () => {
             }, 200);
           });
         });
-        
+
         setScannerStarted(true);
       }
     } catch (error: any) {
@@ -409,81 +410,69 @@ const Scanner = () => {
     }
   }, [blocked]);
 
-  /* ─── Start barcode decoder with continuous scanning ─── */
-  const startBarcodeDecoder = useCallback(async () => {
-    if (!streamRef.current || !videoRef.current || scanningRef.current) return;
+  /* ─── Start html5-qrcode barcode scanner ─── */
+  const startBarcodeScanner = useCallback(async () => {
+    if (scanningRef.current || blocked) return;
 
-    // Clean up any existing reader first
-    try { readerRef.current?.reset(); } catch {}
-    readerRef.current = null;
+    // Stop any existing instance first
+    await stopBarcodeScanner();
 
-    const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
-      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
-    ]);
-    // TRY_HARDER improves detection on blurry mobile frames
-    hints.set(DecodeHintType.TRY_HARDER, true);
-
-    const reader = new BrowserMultiFormatReader(hints, 300); // scan every 300ms for responsiveness
-    readerRef.current = reader;
-    scanningRef.current = true;
+    // Ensure the container element exists
+    const container = document.getElementById("qr-reader");
+    if (!container) return;
 
     try {
-      // decodeFromStream continuously scans the video stream
-      reader.decodeFromStream(streamRef.current, videoRef.current, (result, error) => {
-        if (!scanningRef.current) return;
-        
-        if (result) {
-          const text = result.getText();
-          if (text && text.length >= 4) { // Valid barcode minimum length
-            scanningRef.current = false;
-            void handleDetectedBarcode(text);
-          }
-        }
-        // error is normal when no barcode in frame — don't log it
-      });
-    } catch (err) {
-      console.error("Barcode decoder init error:", err);
-      // Fallback: retry after a delay
-      retryBarcodeDecoder(reader);
-    }
-  }, [handleDetectedBarcode]);
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      html5QrRef.current = html5QrCode;
+      scanningRef.current = true;
 
-  /* ─── Fallback: retry decodeFromStream after a delay ─── */
-  const retryBarcodeDecoder = useCallback((reader: BrowserMultiFormatReader) => {
-    if (!streamRef.current || !videoRef.current || !scanningRef.current) return;
-    setTimeout(() => {
-      if (!scanningRef.current || !streamRef.current || !videoRef.current) return;
-      try {
-        reader.decodeFromStream(streamRef.current, videoRef.current, (result, _error) => {
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 150 },
+          aspectRatio: 1.777778,
+        },
+        (decodedText) => {
           if (!scanningRef.current) return;
-          if (result) {
-            const text = result.getText();
-            if (text && text.length >= 4) {
-              scanningRef.current = false;
-              void handleDetectedBarcode(text);
-            }
+          if (decodedText && decodedText.length >= 4) {
+            scanningRef.current = false;
+            void handleDetectedBarcode(decodedText);
           }
-        });
-      } catch {
-        // Give up on retry
+        },
+        () => {
+          // Ignore per-frame decode errors — normal when no barcode in view
+        }
+      );
+
+      setScannerStarted(true);
+    } catch (err: any) {
+      console.error("html5-qrcode start error:", err);
+      scanningRef.current = false;
+      // Fall back to raw camera stream so the user at least sees something
+      if (!streamRef.current) {
+        await startCameraStream();
       }
-    }, 500);
-  }, [handleDetectedBarcode]);
-
-  /* ─── Combined start: camera + decoder ─── */
-  const startScanner = useCallback(async () => {
-    if (blocked || (showManual && photoScanStep === "idle") || scannerStarted || !videoRef.current) return;
-    await startCamera();
-    if (scanMode === "barcode") {
-      // Give camera a moment to produce frames before scanning
-      setTimeout(() => startBarcodeDecoder(), 300);
+      if (err?.message?.includes("NotAllowedError") || err?.name === "NotAllowedError") {
+        setCameraError("Camera access denied. Please allow camera access in your browser settings, then reload.");
+      } else if (err?.message?.includes("NotFoundError")) {
+        setCameraError("No camera found. Use manual entry below.");
+      }
     }
-  }, [blocked, showManual, scannerStarted, scanMode, startCamera, startBarcodeDecoder, photoScanStep]);
+  }, [blocked, handleDetectedBarcode, stopBarcodeScanner, startCameraStream]);
 
-  // Auto-start camera on mount
+  /* ─── Combined start ─── */
+  const startScanner = useCallback(async () => {
+    if (blocked || (showManual && photoScanStep === "idle") || scannerStarted) return;
+
+    if (scanMode === "barcode") {
+      await startBarcodeScanner();
+    } else {
+      await startCameraStream();
+    }
+  }, [blocked, showManual, scannerStarted, scanMode, startBarcodeScanner, startCameraStream, photoScanStep]);
+
+  // Auto-start on mount
   useEffect(() => {
     if (autoStarted.current || blocked || showManual) return;
     autoStarted.current = true;
@@ -493,25 +482,40 @@ const Scanner = () => {
     return () => clearTimeout(timer);
   }, [blocked, showManual]);
 
-  // Re-start barcode decoder when returning from label mode
+  // Re-start barcode scanner when returning from label mode
   useEffect(() => {
-    if (scanMode === "barcode" && scannerStarted && !scanningRef.current) {
-      startBarcodeDecoder();
+    if (scanMode === "barcode" && !scanningRef.current && !scannerStarted && !showManual && autoStarted.current) {
+      void startBarcodeScanner();
     }
-  }, [scanMode, scannerStarted, startBarcodeDecoder]);
+  }, [scanMode, scannerStarted, showManual, startBarcodeScanner]);
 
   /* ─── Capture current frame as base64 ─── */
   const captureFrame = useCallback((): string | null => {
-    if (!videoRef.current || !streamRef.current) return null;
-    const video = videoRef.current;
-    if (!video.videoWidth || !video.videoHeight) return null;
-    const canvas = canvasRef.current || document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.85);
+    // Try from the raw video element first (label scan mode)
+    if (videoRef.current && videoRef.current.videoWidth > 0) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current || document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0);
+      return canvas.toDataURL("image/jpeg", 0.85);
+    }
+
+    // Try from html5-qrcode's internal video (barcode mode)
+    const qrVideo = document.querySelector("#qr-reader video") as HTMLVideoElement | null;
+    if (qrVideo && qrVideo.videoWidth > 0) {
+      const canvas = canvasRef.current || document.createElement("canvas");
+      canvas.width = qrVideo.videoWidth;
+      canvas.height = qrVideo.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(qrVideo, 0, 0);
+      return canvas.toDataURL("image/jpeg", 0.85);
+    }
+
+    return null;
   }, []);
 
   /* ─── Upload image to storage ─── */
@@ -540,10 +544,12 @@ const Scanner = () => {
     setPhotoScanStep("front");
     setScanMode("label");
 
+    // Stop barcode scanner, start raw camera for photo capture
+    await stopBarcodeScanner();
     if (!streamRef.current) {
-      await startCamera();
+      await startCameraStream();
     }
-  }, [startCamera]);
+  }, [stopBarcodeScanner, startCameraStream]);
 
   /* ─── Capture front label photo ─── */
   const captureFrontPhoto = useCallback(async () => {
@@ -835,15 +841,20 @@ const Scanner = () => {
     navigateWithScan(product, 'manual');
   };
 
-  /* ─── Mode switch: keep camera stream alive, only toggle decoder ─── */
-  const handleModeSwitch = (mode: "barcode" | "label") => {
+  /* ─── Mode switch ─── */
+  const handleModeSwitch = async (mode: "barcode" | "label") => {
     if (mode === scanMode) return;
 
-    // Stop barcode decoder but keep camera stream alive
     if (mode === "label") {
-      scanningRef.current = false;
-      try { readerRef.current?.reset(); } catch {}
-      readerRef.current = null;
+      // Stop html5-qrcode, start raw camera stream for photo capture
+      await stopBarcodeScanner();
+      setScannerStarted(false);
+      await startCameraStream();
+    } else {
+      // Stop raw camera stream, start html5-qrcode
+      stopCameraStream();
+      setScannerStarted(false);
+      await startBarcodeScanner();
     }
 
     setScanMode(mode);
@@ -851,21 +862,6 @@ const Scanner = () => {
     setShowManualIngredientEntry(false);
     setNotFound(false);
     setLabelScanError(false);
-
-    // If switching to barcode and camera is already running, start decoder
-    if (mode === "barcode" && scannerStarted) {
-      setTimeout(() => startBarcodeDecoder(), 150);
-    }
-
-    // If camera isn't running yet, start it
-    if (!scannerStarted && !streamRef.current) {
-      setTimeout(async () => {
-        await startCamera();
-        if (mode === "barcode") {
-          setTimeout(() => startBarcodeDecoder(), 300);
-        }
-      }, 100);
-    }
   };
 
   const isTwoStepActive = photoScanStep !== "idle";
@@ -874,10 +870,21 @@ const Scanner = () => {
     <div className="fixed inset-0 z-40 overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Full-screen camera feed */}
+      {/* html5-qrcode renders its own video inside this div in barcode mode */}
+      <div
+        id="qr-reader"
+        className="absolute inset-0 z-10"
+        style={{
+          // Hide html5-qrcode's default UI chrome but keep the video visible
+          display: scanMode === "barcode" && !showManual ? "block" : "none",
+        }}
+      />
+
+      {/* Raw video element for label scan / photo capture modes */}
       <video
         ref={videoRef}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover z-10"
+        style={{ display: scanMode === "label" || isTwoStepActive ? "block" : "none" }}
         playsInline
         muted
         autoPlay
@@ -909,10 +916,10 @@ const Scanner = () => {
             <Camera size={40} className="mx-auto text-white/30 mb-3" />
             <p className="text-sm text-white/70 mb-4">{cameraError}</p>
             <button
-              onClick={() => {
+              onClick={async () => {
                 setCameraError(null);
                 autoStarted.current = false;
-                void startScanner();
+                await startScanner();
               }}
               className="rounded-xl bg-primary/20 px-5 py-2.5 text-sm font-medium text-primary transition-colors active:bg-primary/30"
             >
@@ -1012,7 +1019,7 @@ const Scanner = () => {
                   <div className="rounded-2xl bg-black/70 px-6 py-4 text-center backdrop-blur-md">
                     <p className="text-sm text-white/80 mb-2">Label scan encountered an error</p>
                     <button
-                      onClick={() => { setLabelScanError(false); handleModeSwitch("barcode"); }}
+                      onClick={() => { setLabelScanError(false); void handleModeSwitch("barcode"); }}
                       className="text-xs text-primary underline"
                     >
                       Switch to barcode scan
@@ -1043,7 +1050,7 @@ const Scanner = () => {
                   Try again
                 </button>
                 <button
-                  onClick={() => { setLabelScanError(false); handleModeSwitch("barcode"); }}
+                  onClick={() => { setLabelScanError(false); void handleModeSwitch("barcode"); }}
                   className="text-xs text-white/50 underline"
                 >
                   Switch to barcode
@@ -1065,7 +1072,7 @@ const Scanner = () => {
               {/* Mode toggle */}
               <div className="flex rounded-full border border-white/15 overflow-hidden">
                 <button
-                  onClick={() => handleModeSwitch("barcode")}
+                  onClick={() => void handleModeSwitch("barcode")}
                   className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
                     scanMode === "barcode"
                       ? "bg-primary text-primary-foreground"
@@ -1075,7 +1082,7 @@ const Scanner = () => {
                   Barcode
                 </button>
                 <button
-                  onClick={() => handleModeSwitch("label")}
+                  onClick={() => void handleModeSwitch("label")}
                   className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
                     scanMode === "label"
                       ? "bg-primary text-primary-foreground"
