@@ -394,7 +394,7 @@ const Scanner = () => {
       } catch { /* fire & forget */ }
 
       lastBarcode.current = detectedBarcode || "";
-      navigateWithScan(product, 'photo');
+      navigateWithScan(product, 'photo', isWaterDetected);
     } catch (err: any) {
       console.error("Photo scan error:", err);
       const msg = err?.message?.includes("AbortError") || err?.message?.includes("timeout")
