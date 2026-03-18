@@ -347,37 +347,53 @@ const Scanner = () => {
         return;
       }
 
-      const ingredientsRaw = data.ingredients_raw || "";
-      if (!ingredientsRaw.trim()) {
+      const ingredientsRaw = data.ingredients_raw || data.ingredient_text_raw || "";
+      const isWaterDetected = data.is_water === true;
+      const detectedBarcode = data.barcode || null;
+      const category = data.category || "";
+
+      // For water products without ingredients, still allow navigation
+      if (!ingredientsRaw.trim() && !isWaterDetected) {
         toast.error("Couldn't read ingredients. Try a clearer photo.");
         setPhotoProcessing(false);
         return;
       }
 
-      const { score, flagged } = analyzeIngredients(ingredientsRaw);
+      const { score, flagged } = ingredientsRaw.trim()
+        ? analyzeIngredients(ingredientsRaw)
+        : { score: 100, flagged: [] };
+
       const product: ProductResult = {
         name: data.product_name || "Photo Scanned Product",
-        brand: data.brand || "Unknown Brand",
+        brand: data.brand || data.brand_name || "Unknown Brand",
         score,
         ingredientsRaw,
         flagged,
-        categoriesRaw: "",
+        categoriesRaw: category,
       };
 
-      // Enrich database: store in product_submissions for products without barcodes
+      // Enrich database: store in product_submissions
       try {
         supabase.from("product_submissions").insert({
           session_id: getSessionId(),
-          barcode: "PHOTO_SCAN_" + Date.now(),
+          barcode: detectedBarcode || "PHOTO_SCAN_" + Date.now(),
           product_name: product.name,
           brand: product.brand,
           ingredients_raw: ingredientsRaw,
           status: "auto_extracted",
-          notes: `confidence: ${data.confidence || "unknown"}, source: photo_scan`,
+          notes: JSON.stringify({
+            confidence: data.confidence,
+            source: "photo_scan",
+            label_type: data.label_type,
+            label_coverage: data.label_coverage,
+            is_water: isWaterDetected,
+            nutrition: data.nutrition,
+            water_data: data.water_data,
+          }),
         } as any).then(() => {});
       } catch { /* fire & forget */ }
 
-      lastBarcode.current = "";
+      lastBarcode.current = detectedBarcode || "";
       navigateWithScan(product, 'photo');
     } catch (err: any) {
       console.error("Photo scan error:", err);
