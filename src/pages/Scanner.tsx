@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, ImagePlus, Trash2, ArrowLeft } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
