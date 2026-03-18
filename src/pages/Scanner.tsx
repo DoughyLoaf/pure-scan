@@ -126,6 +126,158 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
 }
 
 
+/* ─── Photo Scan Component ─── */
+function PhotoScanPanel({ onResult, onClose }: {
+  onResult: (product: ProductResult) => void;
+  onClose: () => void;
+}) {
+  const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const addImage = (file: File) => {
+    if (images.length >= 2) return;
+    const preview = URL.createObjectURL(file);
+    setImages(prev => [...prev, { file, preview }]);
+    setError(null);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) addImage(file);
+    e.target.value = "";
+  };
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleAnalyze = async () => {
+    if (images.length === 0) return;
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const base64Images = await Promise.all(images.map(img => fileToBase64(img.file)));
+
+      const { data, error: fnError } = await supabase.functions.invoke("extract-ingredients", {
+        body: { images: base64Images },
+      });
+
+      if (fnError || !data) {
+        throw new Error(fnError?.message || "Failed to process images");
+      }
+
+      const ingredientsRaw = data.ingredients_raw || "";
+      if (!ingredientsRaw.trim()) {
+        setError("Couldn't read ingredients from the photo. Try a clearer image or enter them manually.");
+        setProcessing(false);
+        return;
+      }
+
+      const { score, flagged } = analyzeIngredients(ingredientsRaw);
+      const product: ProductResult = {
+        name: data.product_name || "Photo Scan",
+        brand: data.brand || "—",
+        score,
+        ingredientsRaw,
+        flagged,
+      };
+
+      onResult(product);
+    } catch (err: any) {
+      console.error("Photo scan error:", err);
+      setError("Something went wrong. Please try again or enter ingredients manually.");
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-x-0 top-0 bottom-16 z-40 flex flex-col bg-background">
+      <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
+        <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground transition-colors active:bg-muted/70">
+          <ArrowLeft size={20} strokeWidth={1.8} />
+        </button>
+        <span className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Photo Scan</span>
+        <div className="w-10" />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 pt-6 pb-4">
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <p className="text-sm font-medium text-foreground">📸 Take a clear photo of the ingredient list</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            You can add up to 2 photos — one of the front label and one of the ingredients. Make sure the text is readable and well-lit.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          {images.map((img, i) => (
+            <div key={i} className="relative aspect-[3/4] rounded-xl overflow-hidden border border-border bg-muted">
+              <img src={img.preview} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+              <button onClick={() => removeImage(i)} className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md">
+                <Trash2 size={14} />
+              </button>
+              <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] font-medium text-white">
+                {i === 0 ? "Front label" : "Ingredients"}
+              </span>
+            </div>
+          ))}
+
+          {images.length < 2 && (
+            <div className="flex flex-col gap-2 aspect-[3/4]">
+              <button onClick={() => cameraInputRef.current?.click()} className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 text-primary transition-colors active:bg-primary/10">
+                <Camera size={24} />
+                <span className="text-xs font-medium">Take photo</span>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted text-muted-foreground transition-colors active:bg-muted/70">
+                <ImagePlus size={24} />
+                <span className="text-xs font-medium">Upload image</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+        <button
+          onClick={handleAnalyze}
+          disabled={images.length === 0 || processing}
+          className="w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {processing ? (
+            <><Loader2 size={18} className="animate-spin" /> Analyzing ingredients…</>
+          ) : (
+            `Analyze ${images.length === 0 ? "photos" : images.length === 1 ? "1 photo" : "2 photos"}`
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 const Scanner = () => {
   const navigate = useNavigate();
   const [torch, setTorch] = useState(false);
@@ -139,6 +291,7 @@ const Scanner = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scannerStarted, setScannerStarted] = useState(false);
+  const [showPhotoScan, setShowPhotoScan] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
