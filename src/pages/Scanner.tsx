@@ -417,25 +417,22 @@ const Scanner = () => {
     await stopBarcodeScanner();
 
     // Ensure the container element exists
-    const container = document.getElementById("qr-reader");
+    const container = document.getElementById("qr-reader-element");
     if (!container) return;
 
     try {
-      const html5QrCode = new Html5Qrcode("qr-reader");
+      const html5QrCode = new (window as any).Html5Qrcode("qr-reader-element");
       html5QrRef.current = html5QrCode;
       scanningRef.current = true;
 
       await html5QrCode.start(
         { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 150 },
-          aspectRatio: 1.777778,
-        },
-        (decodedText) => {
+        { fps: 10, qrbox: { width: 250, height: 150 } },
+        (decodedText: string) => {
           if (!scanningRef.current) return;
           if (decodedText && decodedText.length >= 4) {
             scanningRef.current = false;
+            html5QrCode.stop().catch(() => {});
             void handleDetectedBarcode(decodedText);
           }
         },
@@ -448,17 +445,15 @@ const Scanner = () => {
     } catch (err: any) {
       console.error("html5-qrcode start error:", err);
       scanningRef.current = false;
-      // Fall back to raw camera stream so the user at least sees something
-      if (!streamRef.current) {
-        await startCameraStream();
-      }
       if (err?.message?.includes("NotAllowedError") || err?.name === "NotAllowedError") {
         setCameraError("Camera access denied. Please allow camera access in your browser settings, then reload.");
       } else if (err?.message?.includes("NotFoundError")) {
         setCameraError("No camera found. Use manual entry below.");
+      } else {
+        setCameraError("Could not start camera. Try again or use manual entry.");
       }
     }
-  }, [blocked, handleDetectedBarcode, stopBarcodeScanner, startCameraStream]);
+  }, [blocked, handleDetectedBarcode, stopBarcodeScanner]);
 
   /* ─── Combined start ─── */
   const startScanner = useCallback(async () => {
