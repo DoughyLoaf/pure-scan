@@ -72,19 +72,19 @@ type AltDB = Record<string, Record<string, Alternative[]>>;
 const ALT_DB: AltDB = {
   chips: {
     "Seed Oil": [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil." },
+      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/400/0752/front_en.3.400.jpg" },
       { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola with no artificial flavors." },
+      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola with no artificial flavors.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/7943/front_en.3.400.jpg" },
     ],
     "Ultra-Processed": [
-      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt." },
+      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/5918/front_en.3.400.jpg" },
       { name: "Terra Vegetable Chips", brand: "Terra", score: 74, reason: "Real vegetables with minimal processing and no artificial flavors." },
       { name: "Good Health Avocado Oil Chips", brand: "Good Health", score: 76, reason: "Clean label with avocado oil and natural seasonings." },
     ],
     _default: [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil." },
+      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/400/0752/front_en.3.400.jpg" },
       { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt." },
+      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/5918/front_en.3.400.jpg" },
     ],
   },
   cereal: {
