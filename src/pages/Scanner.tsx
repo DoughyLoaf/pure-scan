@@ -474,7 +474,7 @@ const Scanner = () => {
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <Loader2 size={32} className="animate-spin text-primary" />
           <p className="mt-3 text-sm font-medium text-white/80">
-            {photoProcessing ? "Reading ingredients…" : "Identifying product…"}
+            {photoProcessing ? (photoProgress || "Reading ingredients…") : "Identifying product…"}
           </p>
         </div>
       )}
