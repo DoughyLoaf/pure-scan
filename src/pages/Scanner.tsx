@@ -586,12 +586,22 @@ const Scanner = () => {
         ) : (
           <p className="mt-5 text-xs text-white/40">Tap the viewfinder to start the camera</p>
         )}
-        <button
-          onClick={() => { setShowManual(true); setNotFound(false); }}
-          className="mt-2 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
-        >
-          Enter barcode manually
-        </button>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={() => { setShowManual(true); setNotFound(false); }}
+            className="text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+          >
+            Enter barcode manually
+          </button>
+          <span className="text-xs text-white/20">or</span>
+          <button
+            onClick={() => setShowPhotoScan(true)}
+            className="flex items-center gap-1.5 text-xs text-primary/70 underline underline-offset-2 transition-colors active:text-primary"
+          >
+            <Camera size={12} />
+            Scan with photo
+          </button>
+        </div>
       </div>
 
       {/* Manual entry panel */}
