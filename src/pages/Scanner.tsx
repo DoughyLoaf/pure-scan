@@ -451,47 +451,26 @@ const Scanner = () => {
     }
   }, [handleDetectedBarcode]);
 
-  /* ─── Fallback: manual frame-by-frame barcode scanning ─── */
-  const startManualFrameScanning = useCallback((reader: BrowserMultiFormatReader) => {
-    if (!videoRef.current) return;
-    
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const scan = () => {
-      if (!scanningRef.current || !video.videoWidth) {
-        if (scanningRef.current) requestAnimationFrame(scan);
-        return;
-      }
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
+  /* ─── Fallback: retry decodeFromStream after a delay ─── */
+  const retryBarcodeDecoder = useCallback((reader: BrowserMultiFormatReader) => {
+    if (!streamRef.current || !videoRef.current || !scanningRef.current) return;
+    setTimeout(() => {
+      if (!scanningRef.current || !streamRef.current || !videoRef.current) return;
       try {
-        const luminanceSource = reader.createLuminanceSource(canvas);
-        const binaryBitmap = reader.createBinaryBitmap(luminanceSource);
-        const result = reader.decodeBitmap(binaryBitmap);
-        if (result) {
-          const text = result.getText();
-          if (text && text.length >= 4) {
-            scanningRef.current = false;
-            void handleDetectedBarcode(text);
-            return;
+        reader.decodeFromStream(streamRef.current, videoRef.current, (result, _error) => {
+          if (!scanningRef.current) return;
+          if (result) {
+            const text = result.getText();
+            if (text && text.length >= 4) {
+              scanningRef.current = false;
+              void handleDetectedBarcode(text);
+            }
           }
-        }
+        });
       } catch {
-        // No barcode found in this frame — continue scanning
+        // Give up on retry
       }
-
-      if (scanningRef.current) {
-        setTimeout(() => requestAnimationFrame(scan), 250);
-      }
-    };
-
-    requestAnimationFrame(scan);
+    }, 500);
   }, [handleDetectedBarcode]);
 
   /* ─── Combined start: camera + decoder ─── */
