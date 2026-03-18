@@ -496,8 +496,9 @@ const Result = () => {
   const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
   const [flaggedCategories] = useState(() => getUserFlaggedCategories());
 
-  const locationState = location.state as { product?: ProductResult } | null;
+  const locationState = location.state as { product?: ProductResult; fromPhotoScan?: boolean } | null;
   const data = locationState?.product ?? DEMO_DATA;
+  const fromPhotoScan = locationState?.fromPhotoScan === true;
 
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 200);
