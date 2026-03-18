@@ -858,6 +858,54 @@ const Scanner = () => {
     setLabelScanError(false);
   };
 
+  /* ─── Handle file input for label scan ─── */
+  const handleLabelFileCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!canScan()) { navigate("/paywall"); return; }
+
+    setPhotoProcessing(true);
+    setPhotoProgress("Reading label…");
+
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await processPhotoScan(base64, (step) => setPhotoProgress(step));
+
+      if (result.confidence === "low") {
+        toast.error("Couldn't read this label clearly. Try better lighting or get closer.");
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      if (result.needsConfirmation) {
+        setPendingConfirmation(result);
+        setConfirmText(result.extractedText);
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      lastBarcode.current = result.rawResponse?.barcode || "";
+      const isWater = result.rawResponse?.is_water === true;
+      navigateWithScan(result.product, 'photo', isWater);
+    } catch (err: any) {
+      console.error("Label scan error:", err);
+      toast.error("Could not read label — try better lighting or type manually");
+      setPhotoProcessing(false);
+      setPhotoProgress("");
+    }
+
+    // Reset file input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [navigate]);
+
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
