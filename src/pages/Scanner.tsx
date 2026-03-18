@@ -140,8 +140,12 @@ const Scanner = () => {
   const [scanLoading, setScanLoading] = useState(false);
   const [scannerStarted, setScannerStarted] = useState(false);
   const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [photoProgress, setPhotoProgress] = useState("");
   const [showManualIngredientEntry, setShowManualIngredientEntry] = useState(false);
   const [manualIngredientsLabel, setManualIngredientsLabel] = useState("");
+  // LAYER 3: Confirmation state for medium-confidence scans
+  const [pendingConfirmation, setPendingConfirmation] = useState<PhotoScanResult | null>(null);
+  const [confirmText, setConfirmText] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
