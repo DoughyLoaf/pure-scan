@@ -12,7 +12,7 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  if (location.pathname === "/water-report") return null;
+  if (location.pathname === "/water-report" || location.pathname === "/scanner") return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background">

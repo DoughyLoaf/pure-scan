@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+// Scanner is full-screen — BottomNav is hidden via BottomNav.tsx
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Trash2, Package, ListChecks } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
