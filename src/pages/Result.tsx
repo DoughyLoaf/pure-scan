@@ -580,6 +580,16 @@ const Result = () => {
         <MethodologySection />
       </div>
 
+      {/* Photo scan attribution */}
+      {fromPhotoScan && (
+        <div className="mx-6 mt-5 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <Camera size={16} className="mt-0.5 shrink-0 text-primary" strokeWidth={2} />
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">Score based on your photo scan</span> — thanks for adding this to Pure!
+          </p>
+        </div>
+      )}
+
       {/* Missing ingredients notice */}
       {data.ingredientsRaw.trim() === "" && (
         <div className="mx-6 mt-6 flex items-start gap-2.5 rounded-2xl border border-border bg-accent/50 px-4 py-3">
