@@ -181,7 +181,7 @@ const MiniAltCard = ({ alt, scannedName, scannedScore }: { alt: AlternativeProdu
   return (
     <button
       onClick={() => {
-        trackAlternativeTap(scannedName, scannedScore, alt, "view_alternative");
+        trackAlternativeTap(scannedName, scannedScore, alt, "view");
         const query = encodeURIComponent(`${alt.name} ${alt.brand} near me`);
         window.open(`https://www.google.com/maps/search/${query}`, "_blank");
       }}
