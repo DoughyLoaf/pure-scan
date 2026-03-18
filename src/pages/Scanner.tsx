@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+// Scanner is full-screen — BottomNav is hidden via BottomNav.tsx
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Trash2, Package, ListChecks } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
@@ -726,7 +727,7 @@ const Scanner = () => {
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-16 z-40 overflow-hidden">
+    <div className="fixed inset-0 z-40 overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Full-screen camera feed */}
@@ -873,21 +874,21 @@ const Scanner = () => {
             </div>
           )}
 
-          {/* ─── Bottom floating card ─── */}
-          <div className="absolute inset-x-0 bottom-0 z-40">
+          {/* ─── Bottom floating pill ─── */}
+          <div className="absolute inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40">
             <div
-              className="mx-0 rounded-t-3xl px-6 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-5"
+              className="rounded-2xl px-4 py-3 flex flex-col items-center gap-2"
               style={{
-                background: "rgba(0, 0, 0, 0.65)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
+                background: "rgba(0, 0, 0, 0.45)",
+                backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
               }}
             >
               {/* Mode toggle */}
-              <div className="flex rounded-full border border-white/15 overflow-hidden mx-auto w-fit">
+              <div className="flex rounded-full border border-white/15 overflow-hidden">
                 <button
                   onClick={() => handleModeSwitch("barcode")}
-                  className={`px-5 py-2 text-xs font-semibold transition-colors ${
+                  className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
                     scanMode === "barcode"
                       ? "bg-primary text-primary-foreground"
                       : "bg-transparent text-white/60 active:text-white/80"
@@ -897,7 +898,7 @@ const Scanner = () => {
                 </button>
                 <button
                   onClick={() => handleModeSwitch("label")}
-                  className={`px-5 py-2 text-xs font-semibold transition-colors ${
+                  className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
                     scanMode === "label"
                       ? "bg-primary text-primary-foreground"
                       : "bg-transparent text-white/60 active:text-white/80"
@@ -906,17 +907,6 @@ const Scanner = () => {
                   Label Scan
                 </button>
               </div>
-
-              {/* Status text */}
-              {scanMode === "barcode" ? (
-                <p className="mt-3 text-center text-[13px] text-white/50">
-                  {scannerStarted ? "Point at any barcode" : "Starting camera…"}
-                </p>
-              ) : (
-                <p className="mt-3 text-center text-[13px] text-white/50">
-                  {scannerStarted ? "Photograph the ingredient list" : "Starting camera…"}
-                </p>
-              )}
 
               {/* Manual entry link */}
               <button
@@ -928,7 +918,7 @@ const Scanner = () => {
                     setShowManualIngredientEntry(true);
                   }
                 }}
-                className="mt-2 w-full text-center text-[12px] text-white/35 transition-colors active:text-white/50"
+                className="text-[11px] text-white/30 transition-colors active:text-white/50"
               >
                 {scanMode === "barcode" ? "Enter barcode manually" : "Type ingredients manually"}
               </button>
