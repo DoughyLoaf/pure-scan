@@ -169,9 +169,11 @@ function Dashboard() {
   const [brandStats, setBrandStats] = useState<BrandStat[]>([]);
   const [ingredientStats, setIngredientStats] = useState<IngredientStat[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [enrichmentQueue, setEnrichmentQueue] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
   const feedTimer = useRef<ReturnType<typeof setInterval>>();
+  const aiMetrics = getAICostMetrics();
 
   const fetchAll = useCallback(async () => {
     const [s, sess, a, u, p, bs, is_, sub] = await Promise.all([
