@@ -63,10 +63,11 @@ const ProductImage = ({ imageUrl, category }: { imageUrl?: string; category: str
   );
 };
 
-const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: AlternativeProduct; flaggedCategories: string[]; category: string }) => {
+const AlternativeCard = ({ alt, flaggedCategories, category, scannedProductName, scannedProductScore }: { alt: AlternativeProduct; flaggedCategories: string[]; category: string; scannedProductName: string; scannedProductScore: number }) => {
   const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
 
   const handleFindNearMe = () => {
+    trackAlternativeTap(scannedProductName, scannedProductScore, alt, "find_near_me");
     const query = encodeURIComponent(`${alt.name} ${alt.brand} near me`);
     window.open(`https://www.google.com/maps/search/${query}`, "_blank");
   };
