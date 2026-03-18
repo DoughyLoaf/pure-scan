@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, ChevronRight, PackageOpen } from "lucide-react";
+import { ArrowLeft, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, ChevronRight, PackageOpen } from "lucide-react";
 import type { ProductResult } from "@/lib/scoring";
 import { WATER_DATABASE } from "@/lib/water-database";
 import type { WaterBrand } from "@/lib/water-database";
