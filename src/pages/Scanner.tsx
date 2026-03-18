@@ -379,25 +379,12 @@ const Scanner = () => {
           )}
 
           {notFound && (
-            <div className="mt-4 animate-fade-in">
-              <p className="text-sm text-muted-foreground">
-                We don't have this product yet. You can still enter ingredients manually.
-              </p>
-              <textarea
-                placeholder="Paste or type the ingredient list here…"
-                value={manualIngredients}
-                onChange={(e) => setManualIngredients(e.target.value)}
-                rows={3}
-                className="mt-3 w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <button
-                onClick={handleManualIngredients}
-                disabled={!manualIngredients.trim()}
-                className="mt-2 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
-              >
-                Analyze ingredients
-              </button>
-            </div>
+            <NotFoundPanel
+              barcode={barcode}
+              manualIngredients={manualIngredients}
+              setManualIngredients={setManualIngredients}
+              handleManualIngredients={handleManualIngredients}
+            />
           )}
         </div>
       )}
