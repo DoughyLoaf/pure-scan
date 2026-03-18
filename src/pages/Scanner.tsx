@@ -14,27 +14,6 @@ import { processPhotoScan, submitUserCorrection, compressImageForAI } from "@/li
 import type { ProductResult } from "@/lib/scoring";
 import type { PhotoScanResult } from "@/lib/photo-scan";
 
-const CORNER_SIZE = 28;
-const CORNER_WEIGHT = 3;
-
-const CornerBrackets = () => {
-  const style = (pos: Record<string, number | string>): React.CSSProperties => ({
-    position: "absolute",
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    ...pos,
-  });
-  const border = `${CORNER_WEIGHT}px solid hsl(var(--primary))`;
-  return (
-    <>
-      <span style={{ ...style({ top: 0, left: 0 }), borderTop: border, borderLeft: border, borderTopLeftRadius: 8 }} />
-      <span style={{ ...style({ top: 0, right: 0 }), borderTop: border, borderRight: border, borderTopRightRadius: 8 }} />
-      <span style={{ ...style({ bottom: 0, left: 0 }), borderBottom: border, borderLeft: border, borderBottomLeftRadius: 8 }} />
-      <span style={{ ...style({ bottom: 0, right: 0 }), borderBottom: border, borderRight: border, borderBottomRightRadius: 8 }} />
-    </>
-  );
-};
-
 /* ─── Label Scan Overlay ─── */
 const LabelOverlay = ({ text }: { text?: string }) => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -49,7 +28,7 @@ const LabelOverlay = ({ text }: { text?: string }) => (
 /* ─── Product-shaped outline for front label ─── */
 const FrontLabelOverlay = () => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div className="w-[75%] h-[80%] rounded-2xl border-2 border-primary/60 border-dashed flex flex-col items-center justify-center gap-2">
+    <div className="w-[75%] h-[60%] rounded-2xl border-2 border-primary/60 border-dashed flex flex-col items-center justify-center gap-2">
       <Package size={28} className="text-primary/70" />
       <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
         Align front of product here
@@ -61,7 +40,7 @@ const FrontLabelOverlay = () => (
 /* ─── Ingredients label outline ─── */
 const IngredientsOverlay = () => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div className="w-[85%] h-[70%] rounded-2xl border-2 border-primary/60 flex flex-col items-center justify-center gap-2">
+    <div className="w-[85%] h-[60%] rounded-2xl border-2 border-primary/60 flex flex-col items-center justify-center gap-2">
       <ListChecks size={28} className="text-primary/70" />
       <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
         Align ingredients label here
@@ -199,7 +178,6 @@ const Scanner = () => {
   const [photoProgress, setPhotoProgress] = useState("");
   const [showManualIngredientEntry, setShowManualIngredientEntry] = useState(false);
   const [manualIngredientsLabel, setManualIngredientsLabel] = useState("");
-  // LAYER 3: Confirmation state for medium-confidence scans
   const [pendingConfirmation, setPendingConfirmation] = useState<PhotoScanResult | null>(null);
   const [confirmText, setConfirmText] = useState("");
 
@@ -215,6 +193,7 @@ const Scanner = () => {
   const scanningRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const autoStarted = useRef(false);
 
   useEffect(() => {
     setBlocked(!canScan());
@@ -255,7 +234,6 @@ const Scanner = () => {
     }
   }, [torch]);
 
-  // When switching modes, stop barcode decoder but keep camera alive if label mode
   useEffect(() => {
     if (scanMode === "label") {
       scanningRef.current = false;
@@ -346,7 +324,7 @@ const Scanner = () => {
       setScannerStarted(true);
     } catch (error) {
       console.error("Camera start error:", error);
-      setCameraError("Camera access failed. Tap again or use manual entry.");
+      setCameraError("Camera access denied. Use manual entry below.");
     }
   }, [blocked]);
 
@@ -378,6 +356,24 @@ const Scanner = () => {
       setTimeout(() => startBarcodeDecoder(), 100);
     }
   }, [blocked, showManual, scannerStarted, scanMode, startCamera, startBarcodeDecoder, photoScanStep]);
+
+  // Auto-start camera on mount
+  useEffect(() => {
+    if (autoStarted.current || blocked || showManual) return;
+    autoStarted.current = true;
+    // Small delay to ensure videoRef is ready
+    const timer = setTimeout(() => {
+      void startScanner();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [blocked, showManual]);
+
+  // Re-start barcode decoder when returning from label mode
+  useEffect(() => {
+    if (scanMode === "barcode" && scannerStarted && !scanningRef.current) {
+      startBarcodeDecoder();
+    }
+  }, [scanMode, scannerStarted, startBarcodeDecoder]);
 
   const lastBarcode = useRef<string>("");
 
@@ -420,7 +416,6 @@ const Scanner = () => {
     setPhotoScanStep("front");
     setScanMode("label");
 
-    // Ensure camera is running
     if (!streamRef.current) {
       await startCamera();
     }
@@ -456,7 +451,6 @@ const Scanner = () => {
       setPhotoProcessing(false);
       setPhotoProgress("");
 
-      // Brief pause then move to step 2
       setTimeout(() => setPhotoScanStep("ingredients"), 800);
     } catch (err: any) {
       console.error("Front label error:", err);
@@ -479,7 +473,6 @@ const Scanner = () => {
     try {
       const { compressed: ingredientsCompressed } = await compressImageForAI(frame);
 
-      // Call AI for ingredients extraction
       const { data: ingredData, error: ingredError } = await supabase.functions.invoke("extract-product-photos", {
         body: { step: "ingredients", image: ingredientsCompressed },
       });
@@ -502,25 +495,19 @@ const Scanner = () => {
         return;
       }
 
-      // Combine front + ingredients data
       const productName = frontData?.product_name || "Photo Scanned Product";
       const brandName = frontData?.brand_name || "Unknown Brand";
-      const certifications = frontData?.certifications || [];
-      const sizeWeight = frontData?.size_weight || null;
       const isWater = frontData?.is_water === true;
 
-      // Score the ingredients
       setPhotoProgress("Calculating Pure Score…");
       const { score, flagged } = analyzeIngredients(ingredientsRaw);
 
-      // Upload both images in parallel (non-blocking for UX, but we await for URLs)
       setPhotoProgress("Saving to database…");
       const [frontUrl, ingredientsUrl] = await Promise.all([
         uploadImage(frontImageBase64, "front"),
         uploadImage(ingredientsCompressed, "ingredients"),
       ]);
 
-      // Build product
       const product: ProductResult = {
         name: productName,
         brand: brandName,
@@ -530,7 +517,6 @@ const Scanner = () => {
         categoriesRaw: frontData?.category || "",
       };
 
-      // Save to products table
       const barcodeValue = notFoundBarcode.current || `photo_${Date.now()}`;
       try {
         await (supabase as any).rpc("upsert_product", {
@@ -548,7 +534,6 @@ const Scanner = () => {
           p_water_brand: "",
         });
 
-        // Update with photo-specific columns
         if (frontUrl || ingredientsUrl) {
           await supabase
             .from("products")
@@ -566,7 +551,6 @@ const Scanner = () => {
         console.error("Product save error:", err);
       }
 
-      // Enrichment queue entry
       try {
         supabase.from("enrichment_queue" as any).insert({
           session_id: getSessionId(),
@@ -580,7 +564,6 @@ const Scanner = () => {
         }).then(() => {});
       } catch {}
 
-      // Reset state and navigate
       setPhotoScanStep("idle");
       setFrontImageBase64("");
       setFrontData(null);
@@ -657,7 +640,6 @@ const Scanner = () => {
     }
   }, [navigate, photoProcessing, captureFrame]);
 
-  /* ─── LAYER 3+4: Confirm or correct medium-confidence scan ─── */
   const handleConfirmIngredients = () => {
     if (!pendingConfirmation) return;
     const wasEdited = confirmText !== pendingConfirmation.extractedText;
@@ -680,7 +662,6 @@ const Scanner = () => {
     setConfirmText("");
   };
 
-  /* ─── Manual ingredient entry for label mode ─── */
   const handleManualLabelIngredients = () => {
     if (!manualIngredientsLabel.trim()) return;
     const { score, flagged } = analyzeIngredients(manualIngredientsLabel);
@@ -745,8 +726,20 @@ const Scanner = () => {
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-16 z-40 flex flex-col bg-[#0a0a0a]">
+    <div className="fixed inset-x-0 top-0 bottom-16 z-40 overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Full-screen camera feed */}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover"
+        playsInline muted autoPlay
+      />
+
+      {/* Dark fallback when camera not started */}
+      {!scannerStarted && (
+        <div className="absolute inset-0 bg-[#0a0a0a]" />
+      )}
 
       {showPulse && (
         <div className="absolute inset-0 z-[100] animate-scan-pulse bg-primary/40 pointer-events-none" />
@@ -761,219 +754,185 @@ const Scanner = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
+      {/* Camera error overlay */}
+      {cameraError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a] z-[80]">
+          <div className="text-center px-8">
+            <Camera size={40} className="mx-auto text-white/30 mb-3" />
+            <p className="text-sm text-white/70">{cameraError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Top bar: X button, wordmark, flashlight ─── */}
+      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+16px)]">
         <button
           onClick={() => isTwoStepActive ? cancelTwoStepFlow() : navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors active:bg-white/20"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white transition-colors active:bg-black/50"
         >
           <X size={20} strokeWidth={1.8} />
         </button>
-        <span className="text-sm font-semibold tracking-tight text-white/90" style={{ fontFamily: "var(--font-display)" }}>
+        <span className="text-[15px] font-bold tracking-tight text-white drop-shadow-sm" style={{ fontFamily: "var(--font-display)" }}>
           {isTwoStepActive ? (
-            <>Pure<span className="text-primary">.</span> Photo Scan</>
+            <>Pure<span className="text-primary">.</span></>
           ) : (
-            <>Pure<span className="text-primary">.</span> Scanner</>
+            <>Pure<span className="text-primary">.</span></>
           )}
         </span>
         <button
           onClick={() => setTorch(!torch)}
           disabled={!scannerStarted}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors active:bg-white/20 disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white transition-colors active:bg-black/50 disabled:opacity-30"
         >
           {torch ? <Flashlight size={20} strokeWidth={1.8} /> : <FlashlightOff size={20} strokeWidth={1.8} />}
         </button>
       </div>
 
-      {/* ─── Two-Step Photo Scan UI ─── */}
+      {/* ─── Two-Step Photo Scan Overlay ─── */}
       {isTwoStepActive ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-6">
-          <StepIndicator current={photoScanStep === "front" || photoScanStep === "front_captured" ? 1 : 2} />
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto flex flex-col items-center">
+            <StepIndicator current={photoScanStep === "front" || photoScanStep === "front_captured" ? 1 : 2} />
 
-          {/* Step description */}
-          <p className="text-sm font-medium text-white/80 mb-4 text-center">
-            {photoScanStep === "front" && "Take a photo of the front label"}
-            {photoScanStep === "front_captured" && (
-              <span className="text-primary flex items-center gap-1.5">
-                <Check size={16} /> Front label captured!
-              </span>
-            )}
-            {photoScanStep === "ingredients" && "Now photograph the ingredients label"}
-            {photoScanStep === "processing" && "Processing your photos…"}
-          </p>
+            <p className="text-sm font-medium text-white drop-shadow-md mb-4 text-center px-8">
+              {photoScanStep === "front" && "Take a photo of the front label"}
+              {photoScanStep === "front_captured" && (
+                <span className="text-primary flex items-center gap-1.5">
+                  <Check size={16} /> Front label captured!
+                </span>
+              )}
+              {photoScanStep === "ingredients" && "Now photograph the ingredients label"}
+              {photoScanStep === "processing" && "Processing your photos…"}
+            </p>
 
-          {/* Viewfinder */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!scannerStarted) void startCamera();
-            }}
-            disabled={scannerStarted || blocked || photoProcessing}
-            className="relative aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl disabled:cursor-default"
-            aria-label="Camera viewfinder"
-          >
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover"
-              playsInline muted autoPlay
-            />
-
+            {/* Overlays on camera */}
             {photoScanStep === "front" && scannerStarted && <FrontLabelOverlay />}
             {photoScanStep === "ingredients" && scannerStarted && <IngredientsOverlay />}
 
-            {!scannerStarted && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
-                  Tap to start camera
-                </span>
+            {/* Capture button */}
+            {scannerStarted && !photoProcessing && (photoScanStep === "front" || photoScanStep === "ingredients") && (
+              <button
+                onClick={photoScanStep === "front" ? captureFrontPhoto : captureIngredientsPhoto}
+                className="mt-5 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm text-white transition-all active:scale-95 active:bg-white/40"
+                aria-label={photoScanStep === "front" ? "Capture front label" : "Capture ingredients"}
+              >
+                <Camera size={24} />
+              </button>
+            )}
+
+            {photoScanStep === "front_captured" && (
+              <div className="mt-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 border-4 border-primary backdrop-blur-sm">
+                <Check size={28} className="text-primary" />
               </div>
             )}
-          </button>
 
-          {/* Capture button */}
-          {scannerStarted && !photoProcessing && (photoScanStep === "front" || photoScanStep === "ingredients") && (
-            <button
-              onClick={photoScanStep === "front" ? captureFrontPhoto : captureIngredientsPhoto}
-              className="mt-5 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white transition-all active:scale-95 active:bg-white/40"
-              aria-label={photoScanStep === "front" ? "Capture front label" : "Capture ingredients"}
-            >
-              <Camera size={24} />
-            </button>
-          )}
-
-          {/* Success checkmark for front_captured */}
-          {photoScanStep === "front_captured" && (
-            <div className="mt-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 border-4 border-primary">
-              <Check size={28} className="text-primary" />
-            </div>
-          )}
-
-          {/* Cancel link */}
-          {!photoProcessing && (
-            <button
-              onClick={cancelTwoStepFlow}
-              className="mt-4 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
-            >
-              Cancel photo scan
-            </button>
-          )}
+            {!photoProcessing && (
+              <button
+                onClick={cancelTwoStepFlow}
+                className="mt-4 text-xs text-white/50 underline underline-offset-2 transition-colors active:text-white/70"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       ) : (
-        /* ─── Normal Scanner UI ─── */
+        /* ─── Normal Scanner: Animated scan line + Bottom floating card ─── */
         <>
-          {/* Viewfinder */}
-          <div className="flex flex-1 flex-col items-center justify-center px-10">
-            <button
-              type="button"
-              onClick={() => void startScanner()}
-              disabled={scannerStarted || blocked || scanLoading || photoProcessing}
-              className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-sm disabled:cursor-default"
-              aria-label="Start camera scanner"
-            >
-              {scanMode === "barcode" ? <CornerBrackets /> : null}
-              <video
-                ref={videoRef}
-                className="absolute inset-0 h-full w-full object-cover"
-                playsInline muted autoPlay
+          {/* Animated green scanning line — sweeps up and down */}
+          {scannerStarted && scanMode === "barcode" && (
+            <div className="absolute inset-x-6 top-[30%] bottom-[35%] z-20 overflow-hidden pointer-events-none">
+              <div
+                className="absolute left-0 right-0 h-[2px] animate-scan-line"
+                style={{
+                  background: "linear-gradient(90deg, transparent 0%, hsl(157, 70%, 45%) 20%, hsl(157, 70%, 50%) 50%, hsl(157, 70%, 45%) 80%, transparent 100%)",
+                  boxShadow: "0 0 12px 2px hsla(157, 70%, 45%, 0.4)",
+                }}
               />
+            </div>
+          )}
 
-              {scanMode === "label" && scannerStarted && <LabelOverlay />}
+          {/* Label scan overlay */}
+          {scanMode === "label" && scannerStarted && (
+            <div className="absolute inset-0 z-20">
+              <LabelOverlay />
+            </div>
+          )}
 
-              {!scannerStarted && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
-                    Tap to scan
-                  </span>
-                </div>
-              )}
-
-              {scanMode === "barcode" && (
-                <>
-                  <div className="absolute inset-x-3 inset-y-3 overflow-hidden pointer-events-none">
-                    <div
-                      className="absolute left-0 right-0 h-[2px] animate-scan-line"
-                      style={{
-                        background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 30%, hsl(var(--primary)) 70%, transparent 100%)",
-                        opacity: 0.7,
-                      }}
-                    />
-                  </div>
-                  <div className="absolute inset-0 rounded-sm bg-white/[0.02] pointer-events-none" />
-                </>
-              )}
-            </button>
-
-            {/* Mode pill selector */}
-            <div className="mt-5 flex rounded-full border border-white/20 overflow-hidden">
+          {/* Label scan capture button — floating */}
+          {scanMode === "label" && scannerStarted && !photoProcessing && (
+            <div className="absolute left-0 right-0 z-30 flex justify-center" style={{ bottom: "calc(35% + 16px)" }}>
               <button
-                onClick={() => handleModeSwitch("barcode")}
-                className={`px-4 py-2 text-xs font-semibold transition-colors ${
-                  scanMode === "barcode"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-transparent text-white/60 active:text-white/80"
-                }`}
+                onClick={capturePhoto}
+                disabled={photoProcessing}
+                className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm text-white transition-all active:scale-95 active:bg-white/40"
+                aria-label="Capture photo"
               >
-                📷 Barcode
-              </button>
-              <button
-                onClick={() => handleModeSwitch("label")}
-                className={`px-4 py-2 text-xs font-semibold transition-colors ${
-                  scanMode === "label"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-transparent text-white/60 active:text-white/80"
-                }`}
-              >
-                🔍 Label Scan
+                <Camera size={24} />
               </button>
             </div>
+          )}
 
-            {/* Mode-specific status text & actions */}
-            {scanMode === "barcode" ? (
-              <>
-                {cameraError ? (
-                  <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
-                ) : scannerStarted ? (
-                  <p className="mt-4 text-sm text-white/50">Point at any barcode</p>
-                ) : (
-                  <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
-                )}
+          {/* ─── Bottom floating card ─── */}
+          <div className="absolute inset-x-0 bottom-0 z-40">
+            <div
+              className="mx-0 rounded-t-3xl px-6 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-5"
+              style={{
+                background: "rgba(0, 0, 0, 0.65)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+              }}
+            >
+              {/* Mode toggle */}
+              <div className="flex rounded-full border border-white/15 overflow-hidden mx-auto w-fit">
                 <button
-                  onClick={() => { setShowManual(true); setNotFound(false); }}
-                  className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+                  onClick={() => handleModeSwitch("barcode")}
+                  className={`px-5 py-2 text-xs font-semibold transition-colors ${
+                    scanMode === "barcode"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-transparent text-white/60 active:text-white/80"
+                  }`}
                 >
-                  Enter barcode manually
+                  Barcode
                 </button>
-              </>
-            ) : (
-              <>
-                {cameraError ? (
-                  <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
-                ) : scannerStarted ? (
-                  <p className="mt-4 text-sm text-white/50">📸 Take a clear photo of the ingredient list</p>
-                ) : (
-                  <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
-                )}
-
-                {/* Capture button */}
-                {scannerStarted && !photoProcessing && (
-                  <button
-                    onClick={capturePhoto}
-                    disabled={photoProcessing}
-                    className="mt-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white transition-all active:scale-95 active:bg-white/40"
-                    aria-label="Capture photo"
-                  >
-                    <Camera size={24} />
-                  </button>
-                )}
-
                 <button
-                  onClick={() => setShowManualIngredientEntry(true)}
-                  className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+                  onClick={() => handleModeSwitch("label")}
+                  className={`px-5 py-2 text-xs font-semibold transition-colors ${
+                    scanMode === "label"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-transparent text-white/60 active:text-white/80"
+                  }`}
                 >
-                  Type ingredients manually
+                  Label Scan
                 </button>
-              </>
-            )}
+              </div>
+
+              {/* Status text */}
+              {scanMode === "barcode" ? (
+                <p className="mt-3 text-center text-[13px] text-white/50">
+                  {scannerStarted ? "Point at any barcode" : "Starting camera…"}
+                </p>
+              ) : (
+                <p className="mt-3 text-center text-[13px] text-white/50">
+                  {scannerStarted ? "Photograph the ingredient list" : "Starting camera…"}
+                </p>
+              )}
+
+              {/* Manual entry link */}
+              <button
+                onClick={() => {
+                  if (scanMode === "barcode") {
+                    setShowManual(true);
+                    setNotFound(false);
+                  } else {
+                    setShowManualIngredientEntry(true);
+                  }
+                }}
+                className="mt-2 w-full text-center text-[12px] text-white/35 transition-colors active:text-white/50"
+              >
+                {scanMode === "barcode" ? "Enter barcode manually" : "Type ingredients manually"}
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -1038,7 +997,7 @@ const Scanner = () => {
         </div>
       )}
 
-      {/* LAYER 3: Medium-confidence confirmation panel */}
+      {/* Medium-confidence confirmation panel */}
       {pendingConfirmation && !isTwoStepActive && (
         <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
           <div className="mb-4 flex items-center justify-between">
@@ -1069,7 +1028,7 @@ const Scanner = () => {
 
       {/* Blocked upgrade button */}
       {!showManual && !showManualIngredientEntry && !pendingConfirmation && !isTwoStepActive && blocked && (
-        <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
+        <div className="absolute inset-x-0 bottom-0 z-50 px-6 pb-[calc(env(safe-area-inset-bottom)+16px)]">
           <button onClick={() => navigate("/paywall")}
             className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors">
             No scans left — Upgrade
