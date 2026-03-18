@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Trash2 } from "lucide-react";
+import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Trash2, Package, ListChecks } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
@@ -10,7 +10,7 @@ import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/session";
 import { toast } from "sonner";
-import { processPhotoScan, submitUserCorrection } from "@/lib/photo-scan";
+import { processPhotoScan, submitUserCorrection, compressImageForAI } from "@/lib/photo-scan";
 import type { ProductResult } from "@/lib/scoring";
 import type { PhotoScanResult } from "@/lib/photo-scan";
 
@@ -36,22 +36,60 @@ const CornerBrackets = () => {
 };
 
 /* ─── Label Scan Overlay ─── */
-const LabelOverlay = () => (
+const LabelOverlay = ({ text }: { text?: string }) => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div className="w-[85%] h-[70%] rounded-2xl border-2 border-primary/60 flex items-center justify-center">
       <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
-        Point at ingredient list
+        {text || "Point at ingredient list"}
       </span>
     </div>
   </div>
 );
 
+/* ─── Product-shaped outline for front label ─── */
+const FrontLabelOverlay = () => (
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div className="w-[75%] h-[80%] rounded-2xl border-2 border-primary/60 border-dashed flex flex-col items-center justify-center gap-2">
+      <Package size={28} className="text-primary/70" />
+      <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
+        Align front of product here
+      </span>
+    </div>
+  </div>
+);
+
+/* ─── Ingredients label outline ─── */
+const IngredientsOverlay = () => (
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div className="w-[85%] h-[70%] rounded-2xl border-2 border-primary/60 flex flex-col items-center justify-center gap-2">
+      <ListChecks size={28} className="text-primary/70" />
+      <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
+        Align ingredients label here
+      </span>
+    </div>
+  </div>
+);
+
+/* ─── Step Indicator ─── */
+const StepIndicator = ({ current }: { current: 1 | 2 }) => (
+  <div className="flex items-center gap-2 mb-3">
+    <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+      current >= 1 ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/40"
+    }`}>1</div>
+    <div className={`h-0.5 w-8 ${current >= 2 ? "bg-primary" : "bg-white/20"}`} />
+    <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+      current >= 2 ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/40"
+    }`}>2</div>
+  </div>
+);
+
 /* ─── Not Found Panel with submission form ─── */
-function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handleManualIngredients }: {
+function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handleManualIngredients, onPhotoScan }: {
   barcode: string;
   manualIngredients: string;
   setManualIngredients: (v: string) => void;
   handleManualIngredients: () => void;
+  onPhotoScan: () => void;
 }) {
   const [showSubmit, setShowSubmit] = useState(false);
   const [subName, setSubName] = useState("");
@@ -75,19 +113,37 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
   return (
     <div className="mt-4 animate-fade-in">
       <p className="text-sm text-muted-foreground">
-        We don't have this product yet. You can still enter ingredients manually.
+        We don't have this product yet.
       </p>
+
+      {/* Photo scan CTA — primary action */}
+      <button
+        onClick={onPhotoScan}
+        className="mt-3 w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors flex items-center justify-center gap-2"
+      >
+        <Camera size={18} />
+        Scan product with camera
+      </button>
+      <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+        Take 2 quick photos to get your score instantly
+      </p>
+
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+        <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">or type manually</span></div>
+      </div>
+
       <textarea
         placeholder="Paste or type the ingredient list here…"
         value={manualIngredients}
         onChange={(e) => setManualIngredients(e.target.value)}
         rows={3}
-        className="mt-3 w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       <button
         onClick={handleManualIngredients}
         disabled={!manualIngredients.trim()}
-        className="mt-2 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+        className="mt-2 w-full rounded-xl border border-primary/30 bg-primary/10 px-6 py-3 text-sm font-semibold text-primary transition-colors disabled:opacity-50"
       >
         Analyze ingredients
       </button>
@@ -147,6 +203,13 @@ const Scanner = () => {
   const [pendingConfirmation, setPendingConfirmation] = useState<PhotoScanResult | null>(null);
   const [confirmText, setConfirmText] = useState("");
 
+  // Two-step photo scan state
+  type PhotoScanStep = "idle" | "front" | "front_captured" | "ingredients" | "processing";
+  const [photoScanStep, setPhotoScanStep] = useState<PhotoScanStep>("idle");
+  const [frontImageBase64, setFrontImageBase64] = useState<string>("");
+  const [frontData, setFrontData] = useState<any>(null);
+  const notFoundBarcode = useRef<string>("");
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const scanningRef = useRef(false);
@@ -177,8 +240,8 @@ const Scanner = () => {
   }, []);
 
   useEffect(() => {
-    if (showManual) stopScanner();
-  }, [showManual, stopScanner]);
+    if (showManual && photoScanStep === "idle") stopScanner();
+  }, [showManual, stopScanner, photoScanStep]);
 
   useEffect(() => {
     return () => stopScanner();
@@ -195,7 +258,6 @@ const Scanner = () => {
   // When switching modes, stop barcode decoder but keep camera alive if label mode
   useEffect(() => {
     if (scanMode === "label") {
-      // Stop the barcode reader but keep camera stream
       scanningRef.current = false;
       readerRef.current?.reset();
       readerRef.current = null;
@@ -219,7 +281,7 @@ const Scanner = () => {
       }, 350);
     } else {
       setTimeout(() => {
-        navigate("/result", { state: { product, scansRemaining: remaining } });
+        navigate("/result", { state: { product, scansRemaining: remaining, fromPhotoScan: method === 'photo' } });
       }, 350);
     }
   };
@@ -252,6 +314,7 @@ const Scanner = () => {
           trackUnknownBarcode(code);
           setScanLoading(false);
           setBarcode(code);
+          notFoundBarcode.current = code;
           setNotFound(true);
           setShowManual(true);
         }
@@ -259,6 +322,7 @@ const Scanner = () => {
         trackUnknownBarcode(code);
         setScanLoading(false);
         setBarcode(code);
+        notFoundBarcode.current = code;
         setNotFound(true);
         setShowManual(true);
       }
@@ -267,8 +331,8 @@ const Scanner = () => {
   );
 
   const startCamera = useCallback(async () => {
-    if (blocked || showManual || !videoRef.current) return;
-    if (streamRef.current) return; // already running
+    if (blocked || !videoRef.current) return;
+    if (streamRef.current) return;
     setCameraError(null);
 
     try {
@@ -284,7 +348,7 @@ const Scanner = () => {
       console.error("Camera start error:", error);
       setCameraError("Camera access failed. Tap again or use manual entry.");
     }
-  }, [blocked, showManual]);
+  }, [blocked]);
 
   const startBarcodeDecoder = useCallback(async () => {
     if (!streamRef.current || !videoRef.current || scanningRef.current) return;
@@ -308,39 +372,257 @@ const Scanner = () => {
   }, [handleDetectedBarcode]);
 
   const startScanner = useCallback(async () => {
-    if (blocked || showManual || scannerStarted || !videoRef.current) return;
+    if (blocked || (showManual && photoScanStep === "idle") || scannerStarted || !videoRef.current) return;
     await startCamera();
     if (scanMode === "barcode") {
-      // Small delay to ensure camera is fully started
       setTimeout(() => startBarcodeDecoder(), 100);
     }
-  }, [blocked, showManual, scannerStarted, scanMode, startCamera, startBarcodeDecoder]);
+  }, [blocked, showManual, scannerStarted, scanMode, startCamera, startBarcodeDecoder, photoScanStep]);
 
   const lastBarcode = useRef<string>("");
 
-  /* ─── Photo Capture (Label Scan mode) — uses 5-layer pipeline ─── */
-  const capturePhoto = useCallback(async () => {
-    if (!videoRef.current || !streamRef.current || photoProcessing) return;
-    if (!canScan()) { navigate("/paywall"); return; }
-
+  /* ─── Capture current frame as base64 ─── */
+  const captureFrame = useCallback((): string | null => {
+    if (!videoRef.current || !streamRef.current) return null;
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
     ctx.drawImage(video, 0, 0);
-    const base64 = canvas.toDataURL("image/jpeg", 0.85);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  }, []);
+
+  /* ─── Upload image to storage ─── */
+  const uploadImage = async (base64: string, folder: string): Promise<string | null> => {
+    try {
+      const { compressed } = await compressImageForAI(base64);
+      const blob = await (await fetch(compressed)).blob();
+      const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const { error } = await supabase.storage.from("product-images").upload(fileName, blob, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+      if (error) { console.error("Upload error:", error); return null; }
+      const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(fileName);
+      return urlData?.publicUrl || null;
+    } catch (err) {
+      console.error("Upload failed:", err);
+      return null;
+    }
+  };
+
+  /* ─── Two-step photo scan: initiate from not-found panel ─── */
+  const startTwoStepPhotoScan = useCallback(async () => {
+    setShowManual(false);
+    setNotFound(false);
+    setPhotoScanStep("front");
+    setScanMode("label");
+
+    // Ensure camera is running
+    if (!streamRef.current) {
+      await startCamera();
+    }
+  }, [startCamera]);
+
+  /* ─── Capture front label photo ─── */
+  const captureFrontPhoto = useCallback(async () => {
+    if (photoProcessing) return;
+    const frame = captureFrame();
+    if (!frame) { toast.error("Camera not ready"); return; }
+
+    setPhotoProcessing(true);
+    setPhotoProgress("Reading front label…");
+
+    try {
+      const { compressed } = await compressImageForAI(frame);
+      setFrontImageBase64(compressed);
+
+      const { data, error } = await supabase.functions.invoke("extract-product-photos", {
+        body: { step: "front", image: compressed },
+      });
+
+      if (error || !data) throw new Error(error?.message || "Failed to read front label");
+      if (data.error === "no_label_visible") {
+        toast.error("Couldn't read the front label. Try again with better lighting.");
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      setFrontData(data);
+      setPhotoScanStep("front_captured");
+      setPhotoProcessing(false);
+      setPhotoProgress("");
+
+      // Brief pause then move to step 2
+      setTimeout(() => setPhotoScanStep("ingredients"), 800);
+    } catch (err: any) {
+      console.error("Front label error:", err);
+      toast.error("Couldn't read front label. Try again.");
+      setPhotoProcessing(false);
+      setPhotoProgress("");
+    }
+  }, [captureFrame, photoProcessing]);
+
+  /* ─── Capture ingredients photo and process full result ─── */
+  const captureIngredientsPhoto = useCallback(async () => {
+    if (photoProcessing) return;
+    const frame = captureFrame();
+    if (!frame) { toast.error("Camera not ready"); return; }
+
+    setPhotoProcessing(true);
+    setPhotoProgress("Reading ingredients…");
+    setPhotoScanStep("processing");
+
+    try {
+      const { compressed: ingredientsCompressed } = await compressImageForAI(frame);
+
+      // Call AI for ingredients extraction
+      const { data: ingredData, error: ingredError } = await supabase.functions.invoke("extract-product-photos", {
+        body: { step: "ingredients", image: ingredientsCompressed },
+      });
+
+      if (ingredError || !ingredData) throw new Error(ingredError?.message || "Failed to read ingredients");
+      if (ingredData.error === "no_ingredients_visible") {
+        toast.error("Couldn't read ingredients. Try a clearer photo.");
+        setPhotoScanStep("ingredients");
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      const ingredientsRaw = ingredData.ingredient_text_raw || "";
+      if (!ingredientsRaw.trim()) {
+        toast.error("No ingredients found. Try getting closer to the label.");
+        setPhotoScanStep("ingredients");
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      // Combine front + ingredients data
+      const productName = frontData?.product_name || "Photo Scanned Product";
+      const brandName = frontData?.brand_name || "Unknown Brand";
+      const certifications = frontData?.certifications || [];
+      const sizeWeight = frontData?.size_weight || null;
+      const isWater = frontData?.is_water === true;
+
+      // Score the ingredients
+      setPhotoProgress("Calculating Pure Score…");
+      const { score, flagged } = analyzeIngredients(ingredientsRaw);
+
+      // Upload both images in parallel (non-blocking for UX, but we await for URLs)
+      setPhotoProgress("Saving to database…");
+      const [frontUrl, ingredientsUrl] = await Promise.all([
+        uploadImage(frontImageBase64, "front"),
+        uploadImage(ingredientsCompressed, "ingredients"),
+      ]);
+
+      // Build product
+      const product: ProductResult = {
+        name: productName,
+        brand: brandName,
+        score,
+        ingredientsRaw,
+        flagged,
+        categoriesRaw: frontData?.category || "",
+      };
+
+      // Save to products table
+      const barcodeValue = notFoundBarcode.current || `photo_${Date.now()}`;
+      try {
+        await (supabase as any).rpc("upsert_product", {
+          p_barcode: barcodeValue,
+          p_product_name: productName,
+          p_brand: brandName,
+          p_pure_score: score,
+          p_ingredients_raw: ingredientsRaw,
+          p_flagged_count: flagged.length,
+          p_flagged_categories: [...new Set(flagged.map(f => f.category))],
+          p_flagged_ingredients: flagged.map(f => f.name),
+          p_categories_raw: frontData?.category || "",
+          p_image_url: frontUrl || "",
+          p_is_water: isWater,
+          p_water_brand: "",
+        });
+
+        // Update with photo-specific columns
+        if (frontUrl || ingredientsUrl) {
+          await supabase
+            .from("products")
+            .update({
+              front_image_url: frontUrl,
+              ingredients_image_url: ingredientsUrl,
+              data_confidence: "medium",
+              needs_review: false,
+              enrichment_source: "photo_scan",
+              data_source: "photo_scan",
+            } as any)
+            .eq("barcode", barcodeValue);
+        }
+      } catch (err) {
+        console.error("Product save error:", err);
+      }
+
+      // Enrichment queue entry
+      try {
+        supabase.from("enrichment_queue" as any).insert({
+          session_id: getSessionId(),
+          product_name: productName,
+          brand: brandName,
+          barcode: barcodeValue,
+          ingredient_text_raw: ingredientsRaw,
+          confidence: ingredData.confidence || "medium",
+          image_size_bytes: Math.round(ingredientsCompressed.length * 0.75),
+          processing_status: "pending",
+        }).then(() => {});
+      } catch {}
+
+      // Reset state and navigate
+      setPhotoScanStep("idle");
+      setFrontImageBase64("");
+      setFrontData(null);
+      setPhotoProcessing(false);
+      setPhotoProgress("");
+      lastBarcode.current = barcodeValue;
+
+      navigateWithScan(product, 'photo', isWater);
+    } catch (err: any) {
+      console.error("Ingredients capture error:", err);
+      toast.error("Could not read ingredients. Try better lighting or type manually.");
+      setPhotoScanStep("ingredients");
+      setPhotoProcessing(false);
+      setPhotoProgress("");
+    }
+  }, [captureFrame, frontData, frontImageBase64, photoProcessing, navigate]);
+
+  /* ─── Cancel two-step flow ─── */
+  const cancelTwoStepFlow = () => {
+    setPhotoScanStep("idle");
+    setFrontImageBase64("");
+    setFrontData(null);
+    setPhotoProcessing(false);
+    setPhotoProgress("");
+    setScanMode("barcode");
+  };
+
+  /* ─── Photo Capture (Label Scan mode — original single-capture) ─── */
+  const capturePhoto = useCallback(async () => {
+    if (!videoRef.current || !streamRef.current || photoProcessing) return;
+    if (!canScan()) { navigate("/paywall"); return; }
+
+    const frame = captureFrame();
+    if (!frame) return;
 
     setPhotoProcessing(true);
     setPhotoProgress("Compressing image…");
 
     try {
-      const result = await processPhotoScan(base64, (step) => setPhotoProgress(step));
+      const result = await processPhotoScan(frame, (step) => setPhotoProgress(step));
 
-      // LAYER 3: Confidence-based routing
       if (result.confidence === "low") {
-        // Store low-confidence for review but don't show to user
         toast.error("Couldn't read this label clearly. Try better lighting or get closer.");
         setPhotoProcessing(false);
         setPhotoProgress("");
@@ -348,7 +630,6 @@ const Scanner = () => {
       }
 
       if (result.needsConfirmation) {
-        // Medium confidence — show confirmation UI
         setPendingConfirmation(result);
         setConfirmText(result.extractedText);
         setPhotoProcessing(false);
@@ -356,7 +637,6 @@ const Scanner = () => {
         return;
       }
 
-      // High confidence or cache hit — proceed directly
       lastBarcode.current = result.rawResponse?.barcode || "";
       const isWater = result.rawResponse?.is_water === true;
       navigateWithScan(result.product, 'photo', isWater);
@@ -375,7 +655,7 @@ const Scanner = () => {
       setPhotoProcessing(false);
       setPhotoProgress("");
     }
-  }, [navigate, photoProcessing]);
+  }, [navigate, photoProcessing, captureFrame]);
 
   /* ─── LAYER 3+4: Confirm or correct medium-confidence scan ─── */
   const handleConfirmIngredients = () => {
@@ -384,7 +664,6 @@ const Scanner = () => {
     let product: ProductResult;
 
     if (wasEdited) {
-      // LAYER 4: User correction — higher value than AI extraction
       product = submitUserCorrection(pendingConfirmation.product, confirmText, pendingConfirmation.rawResponse);
     } else {
       product = pendingConfirmation.product;
@@ -422,6 +701,7 @@ const Scanner = () => {
     setNotFound(false);
     try {
       lastBarcode.current = barcode.trim();
+      notFoundBarcode.current = barcode.trim();
       const product = await fetchProduct(barcode.trim());
       if (product) {
         navigateWithScan(product, 'barcode');
@@ -462,6 +742,8 @@ const Scanner = () => {
     }
   };
 
+  const isTwoStepActive = photoScanStep !== "idle";
+
   return (
     <div className="fixed inset-x-0 top-0 bottom-16 z-40 flex flex-col bg-[#0a0a0a]">
       <canvas ref={canvasRef} className="hidden" />
@@ -474,7 +756,7 @@ const Scanner = () => {
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <Loader2 size={32} className="animate-spin text-primary" />
           <p className="mt-3 text-sm font-medium text-white/80">
-            {photoProcessing ? (photoProgress || "Reading ingredients…") : "Identifying product…"}
+            {photoProcessing ? (photoProgress || "Reading label…") : "Identifying product…"}
           </p>
         </div>
       )}
@@ -482,13 +764,17 @@ const Scanner = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] mt-4">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => isTwoStepActive ? cancelTwoStepFlow() : navigate(-1)}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors active:bg-white/20"
         >
           <X size={20} strokeWidth={1.8} />
         </button>
         <span className="text-sm font-semibold tracking-tight text-white/90" style={{ fontFamily: "var(--font-display)" }}>
-          Pure<span className="text-primary">.</span> Scanner
+          {isTwoStepActive ? (
+            <>Pure<span className="text-primary">.</span> Photo Scan</>
+          ) : (
+            <>Pure<span className="text-primary">.</span> Scanner</>
+          )}
         </span>
         <button
           onClick={() => setTorch(!torch)}
@@ -499,123 +785,201 @@ const Scanner = () => {
         </button>
       </div>
 
-      {/* Viewfinder */}
-      <div className="flex flex-1 flex-col items-center justify-center px-10">
-        <button
-          type="button"
-          onClick={() => void startScanner()}
-          disabled={scannerStarted || blocked || scanLoading || photoProcessing}
-          className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-sm disabled:cursor-default"
-          aria-label="Start camera scanner"
-        >
-          {scanMode === "barcode" ? <CornerBrackets /> : null}
-          <video
-            ref={videoRef}
-            className="absolute inset-0 h-full w-full object-cover"
-            playsInline muted autoPlay
-          />
+      {/* ─── Two-Step Photo Scan UI ─── */}
+      {isTwoStepActive ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
+          <StepIndicator current={photoScanStep === "front" || photoScanStep === "front_captured" ? 1 : 2} />
 
-          {scanMode === "label" && scannerStarted && <LabelOverlay />}
-
-          {!scannerStarted && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
-                Tap to scan
+          {/* Step description */}
+          <p className="text-sm font-medium text-white/80 mb-4 text-center">
+            {photoScanStep === "front" && "Take a photo of the front label"}
+            {photoScanStep === "front_captured" && (
+              <span className="text-primary flex items-center gap-1.5">
+                <Check size={16} /> Front label captured!
               </span>
+            )}
+            {photoScanStep === "ingredients" && "Now photograph the ingredients label"}
+            {photoScanStep === "processing" && "Processing your photos…"}
+          </p>
+
+          {/* Viewfinder */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!scannerStarted) void startCamera();
+            }}
+            disabled={scannerStarted || blocked || photoProcessing}
+            className="relative aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl disabled:cursor-default"
+            aria-label="Camera viewfinder"
+          >
+            <video
+              ref={videoRef}
+              className="absolute inset-0 h-full w-full object-cover"
+              playsInline muted autoPlay
+            />
+
+            {photoScanStep === "front" && scannerStarted && <FrontLabelOverlay />}
+            {photoScanStep === "ingredients" && scannerStarted && <IngredientsOverlay />}
+
+            {!scannerStarted && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
+                  Tap to start camera
+                </span>
+              </div>
+            )}
+          </button>
+
+          {/* Capture button */}
+          {scannerStarted && !photoProcessing && (photoScanStep === "front" || photoScanStep === "ingredients") && (
+            <button
+              onClick={photoScanStep === "front" ? captureFrontPhoto : captureIngredientsPhoto}
+              className="mt-5 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white transition-all active:scale-95 active:bg-white/40"
+              aria-label={photoScanStep === "front" ? "Capture front label" : "Capture ingredients"}
+            >
+              <Camera size={24} />
+            </button>
+          )}
+
+          {/* Success checkmark for front_captured */}
+          {photoScanStep === "front_captured" && (
+            <div className="mt-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 border-4 border-primary">
+              <Check size={28} className="text-primary" />
             </div>
           )}
 
-          {scanMode === "barcode" && (
-            <>
-              <div className="absolute inset-x-3 inset-y-3 overflow-hidden pointer-events-none">
-                <div
-                  className="absolute left-0 right-0 h-[2px] animate-scan-line"
-                  style={{
-                    background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 30%, hsl(var(--primary)) 70%, transparent 100%)",
-                    opacity: 0.7,
-                  }}
-                />
-              </div>
-              <div className="absolute inset-0 rounded-sm bg-white/[0.02] pointer-events-none" />
-            </>
+          {/* Cancel link */}
+          {!photoProcessing && (
+            <button
+              onClick={cancelTwoStepFlow}
+              className="mt-4 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+            >
+              Cancel photo scan
+            </button>
           )}
-        </button>
-
-        {/* Mode pill selector */}
-        <div className="mt-5 flex rounded-full border border-white/20 overflow-hidden">
-          <button
-            onClick={() => handleModeSwitch("barcode")}
-            className={`px-4 py-2 text-xs font-semibold transition-colors ${
-              scanMode === "barcode"
-                ? "bg-primary text-primary-foreground"
-                : "bg-transparent text-white/60 active:text-white/80"
-            }`}
-          >
-            📷 Barcode
-          </button>
-          <button
-            onClick={() => handleModeSwitch("label")}
-            className={`px-4 py-2 text-xs font-semibold transition-colors ${
-              scanMode === "label"
-                ? "bg-primary text-primary-foreground"
-                : "bg-transparent text-white/60 active:text-white/80"
-            }`}
-          >
-            🔍 Label Scan
-          </button>
         </div>
-
-        {/* Mode-specific status text & actions */}
-        {scanMode === "barcode" ? (
-          <>
-            {cameraError ? (
-              <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
-            ) : scannerStarted ? (
-              <p className="mt-4 text-sm text-white/50">Point at any barcode</p>
-            ) : (
-              <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
-            )}
+      ) : (
+        /* ─── Normal Scanner UI ─── */
+        <>
+          {/* Viewfinder */}
+          <div className="flex flex-1 flex-col items-center justify-center px-10">
             <button
-              onClick={() => { setShowManual(true); setNotFound(false); }}
-              className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+              type="button"
+              onClick={() => void startScanner()}
+              disabled={scannerStarted || blocked || scanLoading || photoProcessing}
+              className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-sm disabled:cursor-default"
+              aria-label="Start camera scanner"
             >
-              Enter barcode manually
-            </button>
-          </>
-        ) : (
-          <>
-            {cameraError ? (
-              <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
-            ) : scannerStarted ? (
-              <p className="mt-4 text-sm text-white/50">📸 Take a clear photo of the ingredient list</p>
-            ) : (
-              <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
-            )}
+              {scanMode === "barcode" ? <CornerBrackets /> : null}
+              <video
+                ref={videoRef}
+                className="absolute inset-0 h-full w-full object-cover"
+                playsInline muted autoPlay
+              />
 
-            {/* Capture button */}
-            {scannerStarted && !photoProcessing && (
+              {scanMode === "label" && scannerStarted && <LabelOverlay />}
+
+              {!scannerStarted && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="rounded-full bg-primary/90 px-5 py-2 text-sm font-semibold text-primary-foreground">
+                    Tap to scan
+                  </span>
+                </div>
+              )}
+
+              {scanMode === "barcode" && (
+                <>
+                  <div className="absolute inset-x-3 inset-y-3 overflow-hidden pointer-events-none">
+                    <div
+                      className="absolute left-0 right-0 h-[2px] animate-scan-line"
+                      style={{
+                        background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 30%, hsl(var(--primary)) 70%, transparent 100%)",
+                        opacity: 0.7,
+                      }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 rounded-sm bg-white/[0.02] pointer-events-none" />
+                </>
+              )}
+            </button>
+
+            {/* Mode pill selector */}
+            <div className="mt-5 flex rounded-full border border-white/20 overflow-hidden">
               <button
-                onClick={capturePhoto}
-                disabled={photoProcessing}
-                className="mt-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white transition-all active:scale-95 active:bg-white/40"
-                aria-label="Capture photo"
+                onClick={() => handleModeSwitch("barcode")}
+                className={`px-4 py-2 text-xs font-semibold transition-colors ${
+                  scanMode === "barcode"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-white/60 active:text-white/80"
+                }`}
               >
-                <Camera size={24} />
+                📷 Barcode
               </button>
-            )}
+              <button
+                onClick={() => handleModeSwitch("label")}
+                className={`px-4 py-2 text-xs font-semibold transition-colors ${
+                  scanMode === "label"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-white/60 active:text-white/80"
+                }`}
+              >
+                🔍 Label Scan
+              </button>
+            </div>
 
-            <button
-              onClick={() => setShowManualIngredientEntry(true)}
-              className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
-            >
-              Type ingredients manually
-            </button>
-          </>
-        )}
-      </div>
+            {/* Mode-specific status text & actions */}
+            {scanMode === "barcode" ? (
+              <>
+                {cameraError ? (
+                  <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+                ) : scannerStarted ? (
+                  <p className="mt-4 text-sm text-white/50">Point at any barcode</p>
+                ) : (
+                  <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
+                )}
+                <button
+                  onClick={() => { setShowManual(true); setNotFound(false); }}
+                  className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+                >
+                  Enter barcode manually
+                </button>
+              </>
+            ) : (
+              <>
+                {cameraError ? (
+                  <p className="mt-4 px-4 text-center text-sm font-medium text-destructive">{cameraError}</p>
+                ) : scannerStarted ? (
+                  <p className="mt-4 text-sm text-white/50">📸 Take a clear photo of the ingredient list</p>
+                ) : (
+                  <p className="mt-4 text-xs text-white/40">Tap the viewfinder to start the camera</p>
+                )}
+
+                {/* Capture button */}
+                {scannerStarted && !photoProcessing && (
+                  <button
+                    onClick={capturePhoto}
+                    disabled={photoProcessing}
+                    className="mt-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white transition-all active:scale-95 active:bg-white/40"
+                    aria-label="Capture photo"
+                  >
+                    <Camera size={24} />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowManualIngredientEntry(true)}
+                  className="mt-3 text-xs text-white/40 underline underline-offset-2 transition-colors active:text-white/60"
+                >
+                  Type ingredients manually
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Manual barcode entry panel */}
-      {showManual && scanMode === "barcode" && (
+      {showManual && scanMode === "barcode" && !isTwoStepActive && (
         <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Enter barcode</h3>
@@ -640,14 +1004,19 @@ const Scanner = () => {
             </div>
           )}
           {notFound && (
-            <NotFoundPanel barcode={barcode} manualIngredients={manualIngredients}
-              setManualIngredients={setManualIngredients} handleManualIngredients={handleManualIngredients} />
+            <NotFoundPanel
+              barcode={barcode}
+              manualIngredients={manualIngredients}
+              setManualIngredients={setManualIngredients}
+              handleManualIngredients={handleManualIngredients}
+              onPhotoScan={startTwoStepPhotoScan}
+            />
           )}
         </div>
       )}
 
       {/* Manual ingredient entry panel for label mode */}
-      {showManualIngredientEntry && scanMode === "label" && (
+      {showManualIngredientEntry && scanMode === "label" && !isTwoStepActive && (
         <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Type ingredients</h3>
@@ -670,7 +1039,7 @@ const Scanner = () => {
       )}
 
       {/* LAYER 3: Medium-confidence confirmation panel */}
-      {pendingConfirmation && (
+      {pendingConfirmation && !isTwoStepActive && (
         <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Confirm ingredients</h3>
@@ -699,7 +1068,7 @@ const Scanner = () => {
       )}
 
       {/* Blocked upgrade button */}
-      {!showManual && !showManualIngredientEntry && !pendingConfirmation && blocked && (
+      {!showManual && !showManualIngredientEntry && !pendingConfirmation && !isTwoStepActive && blocked && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
           <button onClick={() => navigate("/paywall")}
             className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors">
