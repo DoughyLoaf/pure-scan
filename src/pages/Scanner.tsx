@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-// Scanner is full-screen — BottomNav is hidden via BottomNav.tsx
+import { useState, useEffect, useRef, useCallback, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Trash2, Package, ListChecks } from "lucide-react";
+import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Package, ListChecks } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
-import { canScan, recordScan, getScansRemaining } from "@/lib/scan-limits";
+import { canScan, recordScan } from "@/lib/scan-limits";
 import { isWaterProduct, findWaterBrand } from "@/lib/water-database";
 import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +13,17 @@ import { toast } from "sonner";
 import { processPhotoScan, submitUserCorrection, compressImageForAI } from "@/lib/photo-scan";
 import type { ProductResult } from "@/lib/scoring";
 import type { PhotoScanResult } from "@/lib/photo-scan";
+
+/* ─── Error Boundary ─── */
+interface ErrorBoundaryProps { children: ReactNode; fallback: ReactNode; onError?: (error: Error) => void }
+interface ErrorBoundaryState { hasError: boolean }
+
+class ScannerErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false };
+  static getDerivedStateFromError(): ErrorBoundaryState { return { hasError: true }; }
+  componentDidCatch(error: Error) { this.props.onError?.(error); console.error("Scanner error boundary caught:", error); }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+}
 
 /* ─── Label Scan Overlay ─── */
 const LabelOverlay = ({ text }: { text?: string }) => (
@@ -96,7 +106,6 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
         We don't have this product yet.
       </p>
 
-      {/* Photo scan CTA — primary action */}
       <button
         onClick={onPhotoScan}
         className="mt-3 w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors flex items-center justify-center gap-2"
@@ -160,6 +169,37 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
   );
 }
 
+/* ─── Label Scan Content (wrapped in error boundary) ─── */
+function LabelScanContent({
+  scannerStarted,
+  photoProcessing,
+  capturePhoto,
+  showManualIngredientEntry,
+}: {
+  scannerStarted: boolean;
+  photoProcessing: boolean;
+  capturePhoto: () => void;
+  showManualIngredientEntry: boolean;
+}) {
+  return (
+    <>
+      {scannerStarted && <div className="absolute inset-0 z-20"><LabelOverlay /></div>}
+      {scannerStarted && !photoProcessing && !showManualIngredientEntry && (
+        <div className="absolute left-0 right-0 z-30 flex justify-center" style={{ bottom: "calc(35% + 16px)" }}>
+          <button
+            onClick={capturePhoto}
+            disabled={photoProcessing}
+            className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm text-white transition-all active:scale-95 active:bg-white/40"
+            aria-label="Capture photo"
+          >
+            <Camera size={24} />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 
 const Scanner = () => {
   const navigate = useNavigate();
@@ -181,6 +221,7 @@ const Scanner = () => {
   const [manualIngredientsLabel, setManualIngredientsLabel] = useState("");
   const [pendingConfirmation, setPendingConfirmation] = useState<PhotoScanResult | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [labelScanError, setLabelScanError] = useState(false);
 
   // Two-step photo scan state
   type PhotoScanStep = "idle" | "front" | "front_captured" | "ingredients" | "processing";
@@ -195,18 +236,22 @@ const Scanner = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const autoStarted = useRef(false);
+  const lastBarcode = useRef<string>("");
 
   useEffect(() => {
     setBlocked(!canScan());
   }, []);
 
+  /* ─── Stop camera & decoder ─── */
   const stopScanner = useCallback(() => {
     scanningRef.current = false;
-    readerRef.current?.reset();
+    try { readerRef.current?.reset(); } catch {}
     readerRef.current = null;
 
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try { track.stop(); } catch {}
+      });
       streamRef.current = null;
     }
 
@@ -227,6 +272,7 @@ const Scanner = () => {
     return () => stopScanner();
   }, [stopScanner]);
 
+  /* ─── Torch toggle ─── */
   useEffect(() => {
     if (!streamRef.current) return;
     const track = streamRef.current.getVideoTracks()[0];
@@ -235,10 +281,11 @@ const Scanner = () => {
     }
   }, [torch]);
 
+  /* ─── Stop barcode decoder when switching to label ─── */
   useEffect(() => {
     if (scanMode === "label") {
       scanningRef.current = false;
-      readerRef.current?.reset();
+      try { readerRef.current?.reset(); } catch {}
       readerRef.current = null;
     }
   }, [scanMode]);
@@ -309,28 +356,66 @@ const Scanner = () => {
     [navigate, stopScanner]
   );
 
+  /* ─── Start camera with mobile-optimized constraints ─── */
   const startCamera = useCallback(async () => {
     if (blocked || !videoRef.current) return;
     if (streamRef.current) return;
     setCameraError(null);
 
     try {
+      // Request camera with mobile-optimized constraints
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          // Continuous autofocus for mobile barcode scanning
+          ...(navigator.userAgent.match(/Android/i) ? { focusMode: "continuous" as any } : {}),
+        },
       });
       streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-      setScannerStarted(true);
-    } catch (error) {
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        // Ensure video plays - critical for iOS Safari
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("autoplay", "true");
+        videoRef.current.muted = true;
+        
+        await videoRef.current.play().catch(() => {
+          // iOS Safari sometimes needs a retry
+          return new Promise<void>((resolve) => {
+            setTimeout(async () => {
+              try { await videoRef.current?.play(); } catch {}
+              resolve();
+            }, 200);
+          });
+        });
+        
+        setScannerStarted(true);
+      }
+    } catch (error: any) {
       console.error("Camera start error:", error);
-      setCameraError("Camera access denied. Use manual entry below.");
+      if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+        setCameraError("Camera access denied. Please allow camera access in your browser settings, then reload.");
+      } else if (error?.name === "NotFoundError") {
+        setCameraError("No camera found. Use manual entry below.");
+      } else if (error?.name === "NotReadableError" || error?.name === "AbortError") {
+        setCameraError("Camera is in use by another app. Close other apps and try again.");
+      } else {
+        setCameraError("Camera access denied. Use manual entry below.");
+      }
     }
   }, [blocked]);
 
+  /* ─── Start barcode decoder with continuous scanning ─── */
   const startBarcodeDecoder = useCallback(async () => {
     if (!streamRef.current || !videoRef.current || scanningRef.current) return;
+
+    // Clean up any existing reader first
+    try { readerRef.current?.reset(); } catch {}
+    readerRef.current = null;
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -338,23 +423,84 @@ const Scanner = () => {
       BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
       BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
     ]);
+    // TRY_HARDER improves detection on blurry mobile frames
+    hints.set(DecodeHintType.TRY_HARDER, true);
 
-    const reader = new BrowserMultiFormatReader(hints, 500);
+    const reader = new BrowserMultiFormatReader(hints, 300); // scan every 300ms for responsiveness
     readerRef.current = reader;
     scanningRef.current = true;
 
-    reader.decodeFromStream(streamRef.current, videoRef.current, (result) => {
-      if (!scanningRef.current || !result) return;
-      scanningRef.current = false;
-      void handleDetectedBarcode(result.getText());
-    });
+    try {
+      // decodeFromStream continuously scans the video stream
+      reader.decodeFromStream(streamRef.current, videoRef.current, (result, error) => {
+        if (!scanningRef.current) return;
+        
+        if (result) {
+          const text = result.getText();
+          if (text && text.length >= 4) { // Valid barcode minimum length
+            scanningRef.current = false;
+            void handleDetectedBarcode(text);
+          }
+        }
+        // error is normal when no barcode in frame — don't log it
+      });
+    } catch (err) {
+      console.error("Barcode decoder init error:", err);
+      // Fallback: try manual frame-by-frame scanning
+      startManualFrameScanning(reader);
+    }
   }, [handleDetectedBarcode]);
 
+  /* ─── Fallback: manual frame-by-frame barcode scanning ─── */
+  const startManualFrameScanning = useCallback((reader: BrowserMultiFormatReader) => {
+    if (!videoRef.current) return;
+    
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const scan = () => {
+      if (!scanningRef.current || !video.videoWidth) {
+        if (scanningRef.current) requestAnimationFrame(scan);
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+
+      try {
+        const luminanceSource = reader.createLuminanceSource(canvas);
+        const binaryBitmap = reader.createBinaryBitmap(luminanceSource);
+        const result = reader.decodeBitmap(binaryBitmap);
+        if (result) {
+          const text = result.getText();
+          if (text && text.length >= 4) {
+            scanningRef.current = false;
+            void handleDetectedBarcode(text);
+            return;
+          }
+        }
+      } catch {
+        // No barcode found in this frame — continue scanning
+      }
+
+      if (scanningRef.current) {
+        setTimeout(() => requestAnimationFrame(scan), 250);
+      }
+    };
+
+    requestAnimationFrame(scan);
+  }, [handleDetectedBarcode]);
+
+  /* ─── Combined start: camera + decoder ─── */
   const startScanner = useCallback(async () => {
     if (blocked || (showManual && photoScanStep === "idle") || scannerStarted || !videoRef.current) return;
     await startCamera();
     if (scanMode === "barcode") {
-      setTimeout(() => startBarcodeDecoder(), 100);
+      // Give camera a moment to produce frames before scanning
+      setTimeout(() => startBarcodeDecoder(), 300);
     }
   }, [blocked, showManual, scannerStarted, scanMode, startCamera, startBarcodeDecoder, photoScanStep]);
 
@@ -362,7 +508,6 @@ const Scanner = () => {
   useEffect(() => {
     if (autoStarted.current || blocked || showManual) return;
     autoStarted.current = true;
-    // Small delay to ensure videoRef is ready
     const timer = setTimeout(() => {
       void startScanner();
     }, 300);
@@ -376,12 +521,11 @@ const Scanner = () => {
     }
   }, [scanMode, scannerStarted, startBarcodeDecoder]);
 
-  const lastBarcode = useRef<string>("");
-
   /* ─── Capture current frame as base64 ─── */
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !streamRef.current) return null;
     const video = videoRef.current;
+    if (!video.videoWidth || !video.videoHeight) return null;
     const canvas = canvasRef.current || document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -712,15 +856,36 @@ const Scanner = () => {
     navigateWithScan(product, 'manual');
   };
 
+  /* ─── Mode switch: keep camera stream alive, only toggle decoder ─── */
   const handleModeSwitch = (mode: "barcode" | "label") => {
     if (mode === scanMode) return;
+
+    // Stop barcode decoder but keep camera stream alive
+    if (mode === "label") {
+      scanningRef.current = false;
+      try { readerRef.current?.reset(); } catch {}
+      readerRef.current = null;
+    }
+
     setScanMode(mode);
     setShowManual(false);
     setShowManualIngredientEntry(false);
     setNotFound(false);
+    setLabelScanError(false);
 
+    // If switching to barcode and camera is already running, start decoder
     if (mode === "barcode" && scannerStarted) {
-      startBarcodeDecoder();
+      setTimeout(() => startBarcodeDecoder(), 150);
+    }
+
+    // If camera isn't running yet, start it
+    if (!scannerStarted && !streamRef.current) {
+      setTimeout(async () => {
+        await startCamera();
+        if (mode === "barcode") {
+          setTimeout(() => startBarcodeDecoder(), 300);
+        }
+      }, 100);
     }
   };
 
@@ -734,7 +899,10 @@ const Scanner = () => {
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover"
-        playsInline muted autoPlay
+        playsInline
+        muted
+        autoPlay
+        webkit-playsinline="true"
       />
 
       {/* Dark fallback when camera not started */}
@@ -757,10 +925,20 @@ const Scanner = () => {
 
       {/* Camera error overlay */}
       {cameraError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a] z-[80]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] z-[80]">
           <div className="text-center px-8">
             <Camera size={40} className="mx-auto text-white/30 mb-3" />
-            <p className="text-sm text-white/70">{cameraError}</p>
+            <p className="text-sm text-white/70 mb-4">{cameraError}</p>
+            <button
+              onClick={() => {
+                setCameraError(null);
+                autoStarted.current = false;
+                void startScanner();
+              }}
+              className="rounded-xl bg-primary/20 px-5 py-2.5 text-sm font-medium text-primary transition-colors active:bg-primary/30"
+            >
+              Try again
+            </button>
           </div>
         </div>
       )}
@@ -774,11 +952,7 @@ const Scanner = () => {
           <X size={20} strokeWidth={1.8} />
         </button>
         <span className="text-[15px] font-bold tracking-tight text-white drop-shadow-sm" style={{ fontFamily: "var(--font-display)" }}>
-          {isTwoStepActive ? (
-            <>Pure<span className="text-primary">.</span></>
-          ) : (
-            <>Pure<span className="text-primary">.</span></>
-          )}
+          Pure<span className="text-primary">.</span>
         </span>
         <button
           onClick={() => setTorch(!torch)}
@@ -806,11 +980,9 @@ const Scanner = () => {
               {photoScanStep === "processing" && "Processing your photos…"}
             </p>
 
-            {/* Overlays on camera */}
             {photoScanStep === "front" && scannerStarted && <FrontLabelOverlay />}
             {photoScanStep === "ingredients" && scannerStarted && <IngredientsOverlay />}
 
-            {/* Capture button */}
             {scannerStarted && !photoProcessing && (photoScanStep === "front" || photoScanStep === "ingredients") && (
               <button
                 onClick={photoScanStep === "front" ? captureFrontPhoto : captureIngredientsPhoto}
@@ -840,7 +1012,7 @@ const Scanner = () => {
       ) : (
         /* ─── Normal Scanner: Animated scan line + Bottom floating card ─── */
         <>
-          {/* Animated green scanning line — sweeps up and down */}
+          {/* Animated green scanning line */}
           {scannerStarted && scanMode === "barcode" && (
             <div className="absolute inset-x-6 top-[30%] bottom-[35%] z-20 overflow-hidden pointer-events-none">
               <div
@@ -853,24 +1025,51 @@ const Scanner = () => {
             </div>
           )}
 
-          {/* Label scan overlay */}
-          {scanMode === "label" && scannerStarted && (
-            <div className="absolute inset-0 z-20">
-              <LabelOverlay />
-            </div>
+          {/* Label scan overlay — wrapped in error boundary */}
+          {scanMode === "label" && !labelScanError && (
+            <ScannerErrorBoundary
+              fallback={
+                <div className="absolute inset-0 z-20 flex items-center justify-center">
+                  <div className="rounded-2xl bg-black/70 px-6 py-4 text-center backdrop-blur-md">
+                    <p className="text-sm text-white/80 mb-2">Label scan encountered an error</p>
+                    <button
+                      onClick={() => { setLabelScanError(false); handleModeSwitch("barcode"); }}
+                      className="text-xs text-primary underline"
+                    >
+                      Switch to barcode scan
+                    </button>
+                  </div>
+                </div>
+              }
+              onError={() => setLabelScanError(true)}
+            >
+              <LabelScanContent
+                scannerStarted={scannerStarted}
+                photoProcessing={photoProcessing}
+                capturePhoto={capturePhoto}
+                showManualIngredientEntry={showManualIngredientEntry}
+              />
+            </ScannerErrorBoundary>
           )}
 
-          {/* Label scan capture button — floating */}
-          {scanMode === "label" && scannerStarted && !photoProcessing && (
-            <div className="absolute left-0 right-0 z-30 flex justify-center" style={{ bottom: "calc(35% + 16px)" }}>
-              <button
-                onClick={capturePhoto}
-                disabled={photoProcessing}
-                className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm text-white transition-all active:scale-95 active:bg-white/40"
-                aria-label="Capture photo"
-              >
-                <Camera size={24} />
-              </button>
+          {/* Label scan error recovery */}
+          {scanMode === "label" && labelScanError && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center">
+              <div className="rounded-2xl bg-black/70 px-6 py-4 text-center backdrop-blur-md">
+                <p className="text-sm text-white/80 mb-2">Label scan encountered an error</p>
+                <button
+                  onClick={() => { setLabelScanError(false); }}
+                  className="text-xs text-primary underline mr-3"
+                >
+                  Try again
+                </button>
+                <button
+                  onClick={() => { setLabelScanError(false); handleModeSwitch("barcode"); }}
+                  className="text-xs text-white/50 underline"
+                >
+                  Switch to barcode
+                </button>
+              </div>
             </div>
           )}
 
