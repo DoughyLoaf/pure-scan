@@ -166,7 +166,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_session_scan: {
+        Args: { p_flagged_count: number; p_session_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

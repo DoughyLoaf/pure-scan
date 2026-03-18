@@ -29,7 +29,17 @@ export function trackScan(product: ProductResult, barcode?: string, isWater = fa
       .then(() => {});
 
     // Increment session counters
-    supabase.rpc("increment_session_scan", {
+    supabase
+      .from("sessions")
+      .update({
+        scan_count: undefined, // handled by RPC below
+        last_active_at: new Date().toISOString(),
+      })
+      .eq("session_id", getSessionId())
+      .then(() => {});
+
+    // Use raw rpc call for atomic increment
+    (supabase as any).rpc("increment_session_scan", {
       p_session_id: getSessionId(),
       p_flagged_count: product.flagged.length,
     }).then(() => {});
