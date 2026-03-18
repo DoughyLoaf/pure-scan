@@ -912,21 +912,30 @@ const Scanner = () => {
     <div className="fixed inset-0 z-40 overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
 
+      {/* Hidden file input for label scan photo capture */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleLabelFileCapture}
+        className="hidden"
+      />
+
       {/* html5-qrcode renders its own video inside this div in barcode mode */}
       <div
-        id="qr-reader"
+        id="qr-reader-element"
         className="absolute inset-0 z-10"
         style={{
-          // Hide html5-qrcode's default UI chrome but keep the video visible
           display: scanMode === "barcode" && !showManual ? "block" : "none",
         }}
       />
 
-      {/* Raw video element for label scan / photo capture modes */}
+      {/* Raw video element for two-step photo capture modes */}
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover z-10"
-        style={{ display: scanMode === "label" || isTwoStepActive ? "block" : "none" }}
+        style={{ display: isTwoStepActive ? "block" : "none" }}
         playsInline
         muted
         autoPlay
