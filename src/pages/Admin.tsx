@@ -522,6 +522,58 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* ══════ AI Cost Intelligence ══════ */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm text-gray-400 mb-4">AI Cost Intelligence — Photo Scan Optimization</h3>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-400">{aiMetrics.calls}</div>
+              <div className="text-gray-500 text-xs mt-1">Total AI Calls</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-emerald-400">{aiMetrics.hitRate}%</div>
+              <div className="text-gray-500 text-xs mt-1">Cache Hit Rate</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-amber-400">{aiMetrics.tokensSaved.toLocaleString()}</div>
+              <div className="text-gray-500 text-xs mt-1">Tokens Saved (compression)</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-400">${aiMetrics.costSaved}</div>
+              <div className="text-gray-500 text-xs mt-1">Est. Cost Saved</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ══════ Enrichment Queue ══════ */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm text-gray-400">
+              Enrichment Queue — {enrichmentQueue.filter((e: any) => e.processing_status === "pending").length} pending
+            </h3>
+          </div>
+          {enrichmentQueue.length === 0 ? (
+            <p className="text-gray-600 text-sm py-4 text-center">No items in enrichment queue</p>
+          ) : (
+            <SortableTable
+              id="id"
+              columns={[
+                { key: "product_name", label: "Product" },
+                { key: "brand", label: "Brand" },
+                { key: "confidence", label: "Confidence", render: (v: any) => (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${v === "high" ? "bg-green-900 text-green-300" : v === "medium" ? "bg-amber-900 text-amber-300" : "bg-red-900 text-red-300"}`}>{v}</span>
+                )},
+                { key: "processing_status", label: "Status", render: (v: any) => (
+                  <span className={`text-xs ${v === "pending" ? "text-amber-400" : v === "processed" ? "text-green-400" : "text-red-400"}`}>{v}</span>
+                )},
+                { key: "image_size_bytes", label: "Image Size", render: (v: any) => v ? `${(v / 1024).toFixed(0)}KB` : "—" },
+                { key: "created_at", label: "Created", render: (v: any) => fmtTime(v) },
+              ]}
+              data={enrichmentQueue}
+            />
+          )}
+        </div>
+
         {/* Live Feed */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
