@@ -446,8 +446,8 @@ const Scanner = () => {
       });
     } catch (err) {
       console.error("Barcode decoder init error:", err);
-      // Fallback: try manual frame-by-frame scanning
-      startManualFrameScanning(reader);
+      // Fallback: retry after a delay
+      retryBarcodeDecoder(reader);
     }
   }, [handleDetectedBarcode]);
 
