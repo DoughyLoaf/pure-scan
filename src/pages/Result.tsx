@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2, ChevronDown, Info, X, ScanLine, Leaf, Camera } from "lucide-react";
+import { ArrowLeft, Share2, ChevronDown, X, ScanLine, Camera, ChevronRight } from "lucide-react";
 import { isPro, getScansRemaining, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
+import { getAlternatives, inferCategory, type AlternativeProduct } from "@/lib/alternatives-database";
+import { trackAlternativeTap } from "@/lib/track";
 import ResultSkeleton from "@/components/ResultSkeleton";
 import { toast } from "@/hooks/use-toast";
 
+// ── Demo data ──────────────────────────────────────────────────────
 const DEMO_DATA: ProductResult = {
   name: "Lay's Classic Chips",
   brand: "Lay's",
@@ -19,408 +22,137 @@ const DEMO_DATA: ProductResult = {
   ],
 };
 
-const scoreColor = (score: number) => {
-  if (score < 40) return { ring: "hsl(0, 72%, 51%)", label: "Poor" };
-  if (score < 75) return { ring: "hsl(38, 92%, 50%)", label: "Fair" };
-  return { ring: "hsl(var(--primary))", label: "Clean" };
+// ── Tier system ────────────────────────────────────────────────────
+type Tier = { label: string; color: string; bgLight: string };
+
+const getTier = (score: number): Tier => {
+  if (score >= 85) return { label: "PURE", color: "hsl(157, 70%, 37%)", bgLight: "hsl(157, 70%, 95%)" };
+  if (score >= 75) return { label: "CLEAN", color: "hsl(157, 70%, 37%)", bgLight: "hsl(157, 70%, 95%)" };
+  if (score >= 50) return { label: "MIXED", color: "hsl(38, 92%, 50%)", bgLight: "hsl(38, 92%, 95%)" };
+  return { label: "AVOID", color: "hsl(0, 72%, 51%)", bgLight: "hsl(0, 72%, 96%)" };
 };
 
+// ── Ingredient dot color ───────────────────────────────────────────
+const ingredientDotColor = (category: string): { dot: string; level: "red" | "yellow" | "green" } => {
+  switch (category) {
+    case "Seed Oil":
+    case "Artificial Sweetener":
+    case "Artificial Dye":
+      return { dot: "hsl(0, 72%, 51%)", level: "red" };
+    case "Preservative":
+    case "Added Sugar":
+    case "Emulsifier":
+      return { dot: "hsl(38, 92%, 50%)", level: "yellow" };
+    default:
+      return { dot: "hsl(38, 92%, 50%)", level: "yellow" };
+  }
+};
+
+// ── Verdict generator ──────────────────────────────────────────────
+const getVerdict = (data: ProductResult): string => {
+  const redCount = data.flagged.filter(f => {
+    const { level } = ingredientDotColor(f.category);
+    return level === "red";
+  }).length;
+  const totalFlagged = data.flagged.length;
+
+  if (data.score >= 85 && totalFlagged === 0) {
+    return "This is one of the cleanest options in its category.";
+  }
+  if (data.score >= 75 && totalFlagged <= 1) {
+    return "A solid choice with minimal concerns — you're in good shape.";
+  }
+  if (redCount >= 3) {
+    return `This product contains ${redCount} red-flag ingredients we recommend avoiding.`;
+  }
+  if (redCount >= 1 && totalFlagged >= 3) {
+    return `${redCount} ingredient${redCount > 1 ? "s" : ""} we'd avoid plus ${totalFlagged - redCount} worth watching — consider a swap.`;
+  }
+  if (data.score < 40) {
+    return "We'd skip this one — there are much cleaner options available.";
+  }
+  if (totalFlagged >= 2) {
+    return `${totalFlagged} flagged ingredients — not the worst, but cleaner options exist.`;
+  }
+  if (totalFlagged === 1) {
+    return `One ingredient to watch: ${data.flagged[0].name}. Otherwise, not bad.`;
+  }
+  return "No major red flags detected in this product.";
+};
+
+// ── Score Ring ──────────────────────────────────────────────────────
 const ScoreRing = ({ score }: { score: number }) => {
-  const { ring, label } = scoreColor(score);
-  const radius = 54;
+  const tier = getTier(score);
+  const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative h-36 w-36">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 128 128">
-          <circle cx="64" cy="64" r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
+      <div className="relative h-40 w-40">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 136 136">
+          <circle cx="68" cy="68" r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
           <circle
-            cx="64"
-            cy="64"
-            r={radius}
-            fill="none"
-            stroke={ring}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            className="animate-ring-draw"
-            style={{
-              "--ring-circumference": `${circumference}`,
-              "--ring-offset": `${offset}`,
-            } as React.CSSProperties}
+            cx="68" cy="68" r={radius} fill="none"
+            stroke={tier.color} strokeWidth="6" strokeLinecap="round"
+            strokeDasharray={circumference} strokeDashoffset={offset}
+            className="transition-all duration-1000 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)", color: ring }}>
+          <span className="text-4xl font-bold leading-none" style={{ fontFamily: "var(--font-display)", color: tier.color }}>
             {score}
           </span>
-          <span className="text-[11px] font-medium text-muted-foreground">/ 100</span>
         </div>
       </div>
       <span
-        className="mt-2 rounded-full px-3 py-0.5 text-xs font-semibold"
-        style={{ backgroundColor: ring + "18", color: ring }}
+        className="mt-2 rounded-full px-4 py-1 text-[11px] font-extrabold tracking-[0.2em]"
+        style={{ backgroundColor: tier.bgLight, color: tier.color }}
       >
-        {label}
+        {tier.label}
       </span>
     </div>
   );
 };
 
-const PREF_CATEGORY_MAP: Record<string, string> = {
-  "seed-oils": "Seed Oil",
-  "artificial-dyes": "Artificial Dye",
-  "artificial-sweeteners": "Artificial Sweetener",
-  "preservatives": "Preservative",
-  "added-sugars": "Added Sugar",
-  "emulsifiers": "Emulsifier",
-};
-
-const getUserFlaggedCategories = (): Set<string> => {
-  try {
-    const prefs: string[] = JSON.parse(localStorage.getItem("pure_dietary_prefs") || "[]");
-    return new Set(prefs.map((id) => PREF_CATEGORY_MAP[id]).filter(Boolean));
-  } catch {
-    return new Set();
-  }
-};
-
-const getRiskLevel = (category: string): { label: string; color: string; bg: string } => {
-  switch (category) {
-    case "Seed Oil":
-    case "Artificial Sweetener":
-      return { label: "High Risk", color: "hsl(0, 72%, 51%)", bg: "hsl(0, 72%, 51%, 0.1)" };
-    case "Preservative":
-    case "Artificial Dye":
-    case "Added Sugar":
-      return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
-    case "Emulsifier":
-      return { label: "Medium Risk", color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" };
-    case "Ultra-Processed":
-      return { label: "Low-Medium", color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" };
-    default:
-      return { label: "Low-Medium", color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" };
-  }
-};
-
-const LEARN_MORE: Record<string, string[]> = {
-  "Canola Oil": [
-    "High in omega-6 fatty acids which compete with anti-inflammatory omega-3s.",
-    "Undergoes heavy chemical processing including deodorization at high temperatures.",
-    "Studies link excess omega-6 consumption to chronic inflammatory conditions.",
-  ],
-  "Soybean Oil": [
-    "Contains roughly 54% omega-6 linoleic acid, one of the highest among cooking oils.",
-    "Animal studies show it may affect gene expression related to obesity and diabetes.",
-    "Often extracted using hexane, a petroleum-derived chemical solvent.",
-  ],
-  "Sunflower Oil": [
-    "Contains up to 65% omega-6 fatty acids, promoting an inflammatory imbalance.",
-    "High heat processing creates oxidized lipids linked to cardiovascular damage.",
-    "Widely used in processed foods due to its low cost, not its health benefits.",
-  ],
-  "Corn Oil": [
-    "Omega-6 to omega-3 ratio can exceed 40:1, far from the ideal 4:1 or lower.",
-    "Predominantly sourced from genetically modified corn crops.",
-    "Refining process strips away naturally occurring antioxidants and nutrients.",
-  ],
-  "Cottonseed Oil": [
-    "Derived from cotton, a crop heavily treated with pesticides not intended for food use.",
-    "Contains cyclopropenoid fatty acids which may interfere with fatty acid metabolism.",
-    "Historically classified as industrial waste before being repurposed for food processing.",
-  ],
-  "Vegetable Oil": [
-    "Typically a blend of soybean, corn, and canola oils high in omega-6.",
-    "The generic label obscures what specific oils are actually used.",
-    "Undergoes extensive refining that removes nutrients and creates trans fat traces.",
-  ],
-  "Rapeseed Oil": [
-    "Canola is a cultivar of rapeseed bred to reduce erucic acid content.",
-    "Processing involves high heat and chemical solvents that degrade beneficial compounds.",
-    "Studies show high omega-6 intake from seed oils correlates with increased inflammation markers.",
-  ],
-  "Red 40": [
-    "Derived from petroleum; banned or restricted in several European countries.",
-    "Multiple studies link it to hyperactivity and behavioral issues in children.",
-    "The Center for Science in the Public Interest has petitioned for its ban since 2008.",
-  ],
-  "Yellow 5": [
-    "One of the most commonly used artificial dyes in the United States.",
-    "Requires a warning label in the EU due to links to childhood hyperactivity.",
-    "May cause allergic-type reactions, particularly in aspirin-sensitive individuals.",
-  ],
-  "Yellow 6": [
-    "Petroleum-derived dye that has been linked to adrenal tumors in animal studies.",
-    "Requires a hyperactivity warning label on foods sold in the European Union.",
-    "Commonly found in snacks, cereals, and beverages marketed to children.",
-  ],
-  "Blue 1": [
-    "Can cross the blood-brain barrier, raising concerns about neurological effects.",
-    "Limited long-term safety data available despite widespread use.",
-    "Has been shown to cause chromosomal damage in some in-vitro studies.",
-  ],
-  "Blue 2": [
-    "Derived from synthetic indigo and linked to brain tumors in male rats.",
-    "Used primarily in candies, beverages, and pet foods.",
-    "The European Food Safety Authority has called for further safety evaluations.",
-  ],
-  "Red 3": [
-    "Banned in cosmetics by the FDA in 1990 due to thyroid tumor links, but still allowed in food.",
-    "California signed a law in 2023 to ban Red 3 in food by 2027.",
-    "Acts as a xenoestrogen, potentially disrupting hormonal balance.",
-  ],
-  "Green 3": [
-    "One of the least studied synthetic dyes currently permitted in food.",
-    "Animal studies have shown links to bladder and testes tumors.",
-    "Rarely used but still present in some candies and beverages.",
-  ],
-  "BHA": [
-    "Classified as 'reasonably anticipated to be a human carcinogen' by the National Toxicology Program.",
-    "Acts as an endocrine disruptor, potentially affecting thyroid and reproductive hormones.",
-    "Banned as a food additive in Japan and restricted in the EU.",
-  ],
-  "BHT": [
-    "Structurally similar to BHA with comparable endocrine-disrupting concerns.",
-    "Can accumulate in body fat and organs with prolonged exposure.",
-    "Some studies link it to developmental and behavioral effects in animal models.",
-  ],
-  "TBHQ": [
-    "Derived from butane; the FDA limits its concentration to 0.02% of oil content.",
-    "Studies suggest it may impair immune response to infections and vaccines.",
-    "Linked to vision disturbances and liver enlargement at higher doses in animal studies.",
-  ],
-  "Sodium Benzoate": [
-    "When combined with ascorbic acid (vitamin C), can form benzene—a known carcinogen.",
-    "Has been shown to increase hyperactivity in children in combination with artificial colors.",
-    "May damage mitochondrial DNA according to research from the University of Sheffield.",
-  ],
-  "Potassium Sorbate": [
-    "In vitro studies show it can be genotoxic to human lymphocytes at high concentrations.",
-    "Generally recognized as safe at low levels, but cumulative exposure is a concern.",
-    "May cause skin and respiratory allergic reactions in sensitive individuals.",
-  ],
-  "Aspartame": [
-    "Classified as 'possibly carcinogenic to humans' (Group 2B) by IARC in 2023.",
-    "Breaks down into phenylalanine, aspartic acid, and methanol during digestion.",
-    "Some studies suggest it may disrupt gut microbiome composition and glucose tolerance.",
-  ],
-  "Sucralose": [
-    "Research indicates it may reduce beneficial gut bacteria by up to 50%.",
-    "Heating sucralose can produce chloropropanols, a potentially toxic compound class.",
-    "Despite being marketed as 'made from sugar,' it undergoes extensive chemical chlorination.",
-  ],
-  "Saccharin": [
-    "Was nearly banned in the 1970s after studies linked it to bladder cancer in rats.",
-    "More recent research suggests it may alter gut microbiome composition.",
-    "500 times sweeter than sugar, which may condition preference for intensely sweet tastes.",
-  ],
-  "Acesulfame Potassium": [
-    "Contains methylene chloride, a potential carcinogen, as a processing solvent.",
-    "Often used in combination with other artificial sweeteners to mask bitter aftertaste.",
-    "Limited independent long-term studies exist; most safety data comes from manufacturer-funded research.",
-  ],
-  "Maltodextrin": [
-    "Has a glycemic index of 85–105, often higher than pure table sugar (65).",
-    "May suppress the growth of beneficial gut probiotics while promoting harmful bacteria.",
-    "Commonly derived from genetically modified corn through enzymatic processing.",
-  ],
-  "Carrageenan": [
-    "The Cornucopia Institute petitioned the FDA to ban it from food due to inflammatory effects.",
-    "Even food-grade carrageenan may degrade to carcinogenic poligeenan during digestion.",
-    "Widely used as a thickener in plant-based milks, deli meats, and infant formula.",
-  ],
-  "Modified Starch": [
-    "Chemically or enzymatically treated to change texture, stability, or digestibility.",
-    "Some modifications involve propylene oxide or hydrochloric acid treatment.",
-    "Heavily processed variants may spike blood sugar similarly to refined sugars.",
-  ],
-  "Artificial Flavor": [
-    "A single 'artificial flavor' can contain dozens of undisclosed chemical compounds.",
-    "Manufacturers are not required to disclose the specific chemicals used.",
-    "Designed to create hyper-palatable taste profiles that may encourage overconsumption.",
-  ],
-  "Natural Flavor": [
-    "Can contain up to 100 different chemicals including solvents and preservatives.",
-    "The 'natural' label only requires the source to be plant, animal, or mineral-derived.",
-    "Often as heavily processed as artificial flavors despite the healthier-sounding name.",
-  ],
-  // Added Sugars
-  "High Fructose Corn Syrup": [
-    "Metabolized primarily by the liver, contributing to non-alcoholic fatty liver disease.",
-    "Bypasses normal satiety signals, promoting overconsumption and weight gain.",
-    "Linked to increased uric acid levels, raising risk of gout and cardiovascular disease.",
-  ],
-  "Corn Syrup": [
-    "A liquid sweetener with a high glycemic index that rapidly elevates blood sugar.",
-    "Often used to add bulk and moisture to ultra-processed foods at low cost.",
-    "Provides empty calories with no vitamins, minerals, or fiber.",
-  ],
-  "Dextrose": [
-    "A simple sugar (glucose) with a glycemic index near 100, one of the highest possible.",
-    "Rapidly absorbed, causing sharp insulin spikes that promote fat storage.",
-    "Commonly added to processed meats, snacks, and baked goods as a hidden sugar source.",
-  ],
-  "Glucose Syrup": [
-    "Industrially produced by breaking down starch using acids or enzymes.",
-    "Contributes to rapid blood sugar spikes and subsequent energy crashes.",
-    "Often combined with fructose syrup in processed foods to enhance sweetness cheaply.",
-  ],
-  "Invert Sugar": [
-    "Processed with acids or enzymes to break sucrose into glucose and fructose.",
-    "Absorbed more rapidly than regular sugar, intensifying metabolic impact.",
-    "Used in confections and beverages to prevent crystallization and enhance sweetness.",
-  ],
-  "Cane Sugar": [
-    "Despite its 'natural' image, refined cane sugar offers no nutritional advantage over white sugar.",
-    "Excessive intake is strongly linked to obesity, type 2 diabetes, and heart disease.",
-    "The WHO recommends limiting added sugars to less than 10% of daily caloric intake.",
-  ],
-  // Emulsifiers
-  "Polysorbate 80": [
-    "Animal studies show it erodes the protective mucus lining of the gut.",
-    "Linked to increased intestinal permeability ('leaky gut') and low-grade inflammation.",
-    "May promote conditions like colitis and metabolic syndrome according to Georgia State University research.",
-  ],
-  "Carboxymethylcellulose": [
-    "Studies show it alters gut microbiome composition and promotes bacterial overgrowth.",
-    "Linked to intestinal inflammation and metabolic syndrome in mouse models.",
-    "Used as a thickener in ice cream, sauces, and gluten-free baked goods.",
-  ],
-  "Soy Lecithin": [
-    "Extracted from soybean oil using chemical solvents, predominantly from GMO soybeans.",
-    "While generally considered safe in small amounts, cumulative exposure is poorly studied.",
-    "Can cause reactions in individuals with soy allergies despite being highly processed.",
-  ],
-  "Mono and Diglycerides": [
-    "May contain trans fats that are exempt from labeling requirements on nutrition panels.",
-    "Produced through industrial glycerolysis of fats, often from hydrogenated oils.",
-    "Found in nearly every category of processed food from bread to ice cream.",
-  ],
-  "Sodium Stearoyl Lactylate": [
-    "A synthetic emulsifier made from stearic acid and lactic acid.",
-    "Commonly used in commercial bread to improve texture and extend shelf life.",
-    "Limited independent research exists on long-term effects of daily consumption.",
-  ],
-  "DATEM": [
-    "One of the most common dough conditioners in commercial bread production.",
-    "Made by esterifying tartaric acid with mono- and diglycerides of fatty acids.",
-    "Some studies raise concerns about potential heart muscle scarring at high doses in animals.",
-  ],
-  // Additional Ultra-Processed
-  "Sodium Nitrite": [
-    "Forms nitrosamines—potent carcinogens—when exposed to high heat during cooking.",
-    "The WHO classifies processed meats containing nitrites as Group 1 carcinogens.",
-    "Used primarily in bacon, hot dogs, and deli meats to preserve color and inhibit bacteria.",
-  ],
-  "Titanium Dioxide": [
-    "Banned as a food additive in the European Union since 2022 due to genotoxicity concerns.",
-    "Nanoparticles may accumulate in organs and cross the blood-brain barrier.",
-    "Used purely for cosmetic whitening in candies, frosting, and chewing gum.",
-  ],
-};
-
-const getLearnMore = (name: string): string[] => {
-  return LEARN_MORE[name] || [
-    "This ingredient has been flagged due to potential health concerns.",
-    "Research suggests limiting consumption of ultra-processed additives.",
-    "Check independent sources for the latest safety assessments.",
-  ];
-};
-
-const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngredient; flaggedCategories: Set<string> }) => {
-  const isFlaggedForUser = flaggedCategories.has(ingredient.category);
+// ── Ingredient Row ─────────────────────────────────────────────────
+const IngredientRow = ({ ingredient }: { ingredient: FlaggedIngredient }) => {
   const [expanded, setExpanded] = useState(false);
-  const risk = getRiskLevel(ingredient.category);
-  const learnMore = getLearnMore(ingredient.name);
+  const { dot, level } = ingredientDotColor(ingredient.category);
 
   return (
     <button
       onClick={() => setExpanded(!expanded)}
-      className="w-full text-left rounded-2xl border border-border bg-card p-4 transition-colors active:bg-muted/50"
+      className="w-full text-left"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h4 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+      <div className="flex items-center gap-3 py-3">
+        <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+        <div className="flex-1 min-w-0">
+          <span className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
             {ingredient.name}
-          </h4>
-          <span className="mt-0.5 inline-block text-[11px] font-medium text-muted-foreground">
-            {ingredient.category}
           </span>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <div className="flex items-center gap-1.5">
-            {isFlaggedForUser && (
-              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                Flagged for you
-              </span>
-            )}
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-              style={{ backgroundColor: risk.bg, color: risk.color }}
-            >
-              {risk.label}
-            </span>
-          </div>
-          <span className="text-[11px] font-semibold text-destructive">
-            −{ingredient.deduction} pts
-          </span>
-        </div>
-      </div>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-        {ingredient.reason}
-      </p>
-      <div className="mt-3 rounded-lg bg-muted px-3 py-2">
-        <p className="font-mono text-[12px] text-muted-foreground">
-          {ingredient.labelText}
-        </p>
+        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+          {ingredient.category}
+        </span>
+        <ChevronDown
+          size={16} strokeWidth={2}
+          className={`shrink-0 text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+        />
       </div>
 
-      {/* Expandable detail section */}
       <div
         className="overflow-hidden transition-all duration-300 ease-out"
-        style={{
-          maxHeight: expanded ? "400px" : "0px",
-          opacity: expanded ? 1 : 0,
-          marginTop: expanded ? "12px" : "0px",
-        }}
+        style={{ maxHeight: expanded ? "200px" : "0px", opacity: expanded ? 1 : 0 }}
       >
-        <div className="border-t border-border pt-3 space-y-3">
-          {/* Risk Level Badge */}
-          <div className="flex items-center gap-2">
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-              style={{ backgroundColor: risk.bg, color: risk.color }}
-            >
-              {risk.label}
-            </span>
-            <ChevronDown
-              size={14}
-              strokeWidth={2}
-              className="text-muted-foreground rotate-180 transition-transform"
-            />
-          </div>
-
-          {/* Learn More Bullets */}
-          <div>
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Learn more
-            </p>
-            <ul className="space-y-1.5">
-              {learnMore.map((point, i) => (
-                <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-muted-foreground">
-                  <span className="mt-1.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-                  {point}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Source line */}
-          <p className="text-[11px] text-muted-foreground/60 italic">
-            Based on peer-reviewed research
+        <div className="pb-3 pl-[22px]">
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
+            {level === "red" && (
+              <><strong className="text-foreground">{ingredient.name}</strong> — {ingredient.reason.charAt(0).toLowerCase() + ingredient.reason.slice(1)}</>
+            )}
+            {level === "yellow" && (
+              <><strong className="text-foreground">{ingredient.name}</strong> — use caution. {ingredient.reason}</>
+            )}
           </p>
         </div>
       </div>
@@ -428,77 +160,74 @@ const FlagCard = ({ ingredient, flaggedCategories }: { ingredient: FlaggedIngred
   );
 };
 
-const MethodologySection = () => {
-  const [open, setOpen] = useState(false);
+// ── Clean ingredients (green) ──────────────────────────────────────
+const parseCleanIngredients = (raw: string, flaggedNames: Set<string>): string[] => {
+  if (!raw.trim()) return [];
+  const all = raw.split(/,|;/).map(s => s.trim().replace(/\(.*?\)/g, "").trim()).filter(Boolean);
+  return all.filter(name => {
+    const lower = name.toLowerCase();
+    for (const flagged of flaggedNames) {
+      if (lower.includes(flagged.toLowerCase()) || flagged.toLowerCase().includes(lower)) return false;
+    }
+    return true;
+  }).slice(0, 12);
+};
+
+// ── Mini Alternative Card ──────────────────────────────────────────
+const MiniAltCard = ({ alt, scannedName, scannedScore }: { alt: AlternativeProduct; scannedName: string; scannedScore: number }) => {
+  const navigate = useNavigate();
+  const tier = getTier(alt.score);
+
   return (
-    <div className="mt-5 w-full">
-      <button
-        onClick={() => setOpen(!open)}
-        className="mx-auto flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors active:text-foreground"
-      >
-        How we score this
-        <ChevronDown
-          size={14}
-          strokeWidth={2}
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-      </button>
+    <button
+      onClick={() => {
+        trackAlternativeTap(scannedName, scannedScore, alt, "view");
+        const query = encodeURIComponent(`${alt.name} ${alt.brand} near me`);
+        window.open(`https://www.google.com/maps/search/${query}`, "_blank");
+      }}
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors active:bg-muted/50 w-full"
+    >
+      {/* Score */}
       <div
-        className="overflow-hidden transition-all duration-300 ease-out"
-        style={{
-          maxHeight: open ? "300px" : "0px",
-          opacity: open ? 1 : 0,
-          marginTop: open ? "12px" : "0px",
-        }}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: tier.bgLight }}
       >
-        <ul className="space-y-2.5 rounded-2xl border border-border bg-card px-5 py-4 text-[13px] leading-relaxed text-muted-foreground">
-          <li className="flex gap-2">
-            <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            We flag seed oils: canola, soybean, sunflower, corn, cottonseed.
-          </li>
-          <li className="flex gap-2">
-            <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            We flag artificial additives: dyes, preservatives, sweeteners.
-          </li>
-          <li className="flex gap-2">
-            <span className="mt-1 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            Scores are based purely on ingredients. No brand can pay to improve their rating.
-          </li>
-        </ul>
+        <span className="text-sm font-bold" style={{ fontFamily: "var(--font-display)", color: tier.color }}>
+          {alt.score}
+        </span>
       </div>
-    </div>
+      {/* Info */}
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+          {alt.brand}
+        </p>
+        <p className="text-[14px] font-semibold leading-tight truncate" style={{ fontFamily: "var(--font-display)" }}>
+          {alt.name}
+        </p>
+      </div>
+      <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+    </button>
   );
 };
 
-const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
-  const [loaded, setLoaded] = useState(false);
-
-  return (
-    <div className="relative h-[72px] w-[72px] shrink-0 rounded-2xl border border-border overflow-hidden bg-muted">
-      {!loaded && (
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%]" />
-      )}
-      <img
-        src={src}
-        alt={alt}
-        onLoad={() => setLoaded(true)}
-        className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
-      />
-    </div>
-  );
-};
-
+// ── Main Result Component ──────────────────────────────────────────
 const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showBanner, setShowBanner] = useState(false);
   const [ready, setReady] = useState(false);
   const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
-  const [flaggedCategories] = useState(() => getUserFlaggedCategories());
+  const [showGreen, setShowGreen] = useState(false);
 
   const locationState = location.state as { product?: ProductResult; fromPhotoScan?: boolean } | null;
   const data = locationState?.product ?? DEMO_DATA;
   const fromPhotoScan = locationState?.fromPhotoScan === true;
+
+  const tier = getTier(data.score);
+  const verdict = getVerdict(data);
+  const flaggedNames = new Set(data.flagged.map(f => f.name));
+  const cleanIngredients = parseCleanIngredients(data.ingredientsRaw, flaggedNames);
+  const alternatives = getAlternatives(data).slice(0, 3);
 
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 200);
@@ -528,14 +257,8 @@ const Result = () => {
         </button>
         <button
           onClick={async () => {
-            const flaggedCount = data.flagged.length;
-            const firstName = flaggedCount > 0 ? data.flagged[0].name : "";
-            const shareText = `${data.name} scored ${data.score}/100 on Pure. ${flaggedCount} ingredient${flaggedCount === 1 ? "" : "s"} flagged${firstName ? ` including ${firstName}` : ""}. Check what's in your food 👇`;
-            const shareData = {
-              title: `Pure Score — ${data.name}`,
-              text: shareText,
-              url: "https://getpure.app",
-            };
+            const shareText = `${data.name} scored ${data.score}/100 on Pure. ${verdict}`;
+            const shareData = { title: `Pure Score — ${data.name}`, text: shareText, url: "https://getpure.app" };
             if (navigator.share) {
               try { await navigator.share(shareData); } catch {}
             } else {
@@ -551,174 +274,123 @@ const Result = () => {
         </button>
       </div>
 
-      {/* Product Info + Score */}
-      <div className="mt-6 flex flex-col items-center px-6">
-        <div className="flex items-center gap-4 w-full justify-center">
-          {data.imageUrl ? (
-            <ProductImage src={data.imageUrl} alt={data.name} />
-          ) : (
-            <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl border border-border bg-muted">
-              <Leaf size={24} strokeWidth={1.5} className="text-muted-foreground" />
-            </div>
-          )}
-          <div className="flex flex-col">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              {data.brand}
-            </p>
-            <h1
-              className="mt-1 text-lg font-semibold leading-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {data.name}
-            </h1>
-          </div>
-        </div>
-        <div className="mt-6">
-          <ScoreRing score={data.score} />
-        </div>
-
-        <MethodologySection />
+      {/* Product name + brand */}
+      <div className="mt-6 px-6 text-center">
+        <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          {data.brand}
+        </p>
+        <h1 className="mt-1 text-xl font-bold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+          {data.name}
+        </h1>
       </div>
+
+      {/* Score */}
+      <div className="mt-6 flex justify-center">
+        <ScoreRing score={data.score} />
+      </div>
+
+      {/* Verdict */}
+      <p className="mt-5 px-8 text-center text-[15px] leading-relaxed text-muted-foreground">
+        {verdict}
+      </p>
 
       {/* Photo scan attribution */}
       {fromPhotoScan && (
-        <div className="mx-6 mt-5 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
-          <Camera size={16} className="mt-0.5 shrink-0 text-primary" strokeWidth={2} />
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">Score based on your photo scan</span> — thanks for adding this to Pure!
-          </p>
+        <div className="mx-6 mt-4 flex items-center justify-center gap-2 rounded-xl py-2 text-[13px] text-muted-foreground"
+          style={{ backgroundColor: tier.bgLight }}>
+          <Camera size={14} strokeWidth={2} style={{ color: tier.color }} />
+          <span>Score based on your photo scan — thanks for adding this to Pure!</span>
         </div>
       )}
 
-      {/* Missing ingredients notice */}
-      {data.ingredientsRaw.trim() === "" && (
-        <div className="mx-6 mt-6 flex items-start gap-2.5 rounded-2xl border border-border bg-accent/50 px-4 py-3">
-          <Info size={16} className="mt-0.5 shrink-0 text-primary" strokeWidth={2} />
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">No ingredient data available.</span>{" "}
-            This product's score may be incomplete. The database doesn't have an ingredient list for this item yet.
-          </p>
-        </div>
-      )}
+      {/* Divider */}
+      <div className="mx-6 mt-8 h-px bg-border" />
 
-      <div className="mt-10 px-6">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Score breakdown
-        </h3>
-        <div className="mb-6 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Starting score</span>
-            <span className="font-semibold" style={{ fontFamily: "var(--font-display)" }}>100</span>
+      {/* Ingredient breakdown */}
+      <div className="mt-6 px-6">
+        <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          Ingredients
+        </h2>
+
+        {/* Flagged ingredients */}
+        {data.flagged.length > 0 && (
+          <div className="mt-3 divide-y divide-border">
+            {data.flagged.map((ing) => (
+              <IngredientRow key={ing.name} ingredient={ing} />
+            ))}
           </div>
-          {data.flagged.map((ing) => (
-            <div key={ing.name} className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{ing.name}</span>
-              <span className="font-semibold text-destructive">−{ing.deduction}</span>
-            </div>
-          ))}
-          <div className="mt-3 border-t border-border pt-3 flex items-center justify-between text-sm">
-            <span className="font-semibold" style={{ fontFamily: "var(--font-display)" }}>Pure Score</span>
-            <span className="font-bold text-lg" style={{ fontFamily: "var(--font-display)", color: scoreColor(data.score).ring }}>{data.score}</span>
-          </div>
-        </div>
+        )}
 
-        {/* Risk summary */}
-        {(() => {
-          const counts = { high: 0, medium: 0, low: 0 };
-          data.flagged.forEach((ing) => {
-            const r = getRiskLevel(ing.category);
-            if (r.label === "High Risk") counts.high++;
-            else if (r.label === "Medium Risk") counts.medium++;
-            else counts.low++;
-          });
-          const pills: { label: string; count: number; color: string; bg: string }[] = [];
-          if (counts.high) pills.push({ label: "High Risk", count: counts.high, color: "hsl(0, 72%, 51%)", bg: "hsl(0, 72%, 51%, 0.1)" });
-          if (counts.medium) pills.push({ label: "Medium Risk", count: counts.medium, color: "hsl(38, 92%, 50%)", bg: "hsl(38, 92%, 50%, 0.1)" });
-          if (counts.low) pills.push({ label: "Low-Medium", count: counts.low, color: "hsl(48, 80%, 50%)", bg: "hsl(48, 80%, 50%, 0.1)" });
-          return pills.length > 0 ? (
-            <div className="mb-6 flex flex-wrap gap-2">
-              {pills.map((p) => (
-                <span
-                  key={p.label}
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold"
-                  style={{ backgroundColor: p.bg, color: p.color }}
-                >
-                  <span className="font-bold">{p.count}</span> {p.label}
-                </span>
-              ))}
-            </div>
-          ) : null;
-        })()}
-
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Why this score?
-        </h3>
-        <div className="flex flex-col gap-3">
-          {data.flagged.map((ing) => (
-            <FlagCard key={ing.name} ingredient={ing} flaggedCategories={flaggedCategories} />
-          ))}
-        </div>
-
-        {/* Health Insight Card */}
-        {(() => {
-          const seedOilCount = data.flagged.filter((i) => i.category === "Seed Oil").length;
-          const hasDyes = data.flagged.some((i) => i.category === "Artificial Dye");
-          const hasSweeteners = data.flagged.some((i) => i.category === "Artificial Sweetener");
-          const hasHighRisk = seedOilCount >= 2 || hasDyes || hasSweeteners;
-          const onlyUltraProcessed = data.flagged.length > 0 && data.flagged.every((i) => i.category === "Ultra-Processed");
-
-          let tip = "";
-          if (data.score >= 75 && !hasHighRisk) {
-            tip = "This is a clean product by Pure standards. No seed oils, artificial dyes, or high-risk additives detected.";
-          } else if (data.score < 40) {
-            tip = "This product has several concerning ingredients. Consider making it an occasional treat rather than a daily staple, and check the clean alternatives below.";
-          } else if (seedOilCount >= 2) {
-            tip = "This product contains multiple seed oils. Regular consumption can raise your omega-6 to omega-3 ratio, which research links to chronic inflammation. Try swapping to products cooked in avocado or coconut oil.";
-          } else if (hasDyes) {
-            tip = "Artificial dyes like Red 40 and Yellow 5 have been linked to hyperactivity in children and allergic reactions. These are banned or require warning labels in the EU but still allowed in the US.";
-          } else if (hasSweeteners) {
-            tip = "Artificial sweeteners may disrupt your gut microbiome and insulin response over time. Consider products sweetened with honey, maple syrup, or monk fruit instead.";
-          } else if (onlyUltraProcessed && data.score > 60) {
-            tip = "This product scores reasonably well but contains some processing agents. Fine in moderation — just be mindful of daily frequency.";
-          }
-
-          if (!tip) return null;
-
-          return (
-            <div className="mt-6 rounded-2xl bg-card border border-border overflow-hidden">
-              <div className="flex gap-3 p-4" style={{ borderLeft: "4px solid #1D9E75" }}>
-                <span className="mt-0.5 shrink-0 text-lg">💡</span>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
-                    Health insight
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-muted-foreground">
-                    {tip}
-                  </p>
-                </div>
+        {/* Clean ingredients (collapsed) */}
+        {cleanIngredients.length > 0 && (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowGreen(!showGreen)}
+              className="flex items-center gap-2 py-2 text-[13px] font-medium text-muted-foreground"
+            >
+              <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(var(--primary))" }} />
+              {cleanIngredients.length} clean ingredient{cleanIngredients.length !== 1 ? "s" : ""}
+              <ChevronDown
+                size={14} strokeWidth={2}
+                className={`transition-transform duration-200 ${showGreen ? "rotate-180" : ""}`}
+              />
+            </button>
+            <div
+              className="overflow-hidden transition-all duration-300 ease-out"
+              style={{ maxHeight: showGreen ? "300px" : "0px", opacity: showGreen ? 1 : 0 }}
+            >
+              <div className="flex flex-wrap gap-1.5 pb-2 pl-[22px]">
+                {cleanIngredients.map((name) => (
+                  <span key={name} className="rounded-full bg-accent px-2.5 py-1 text-[12px] text-accent-foreground">
+                    {name}
+                  </span>
+                ))}
               </div>
             </div>
-          );
-        })()}
+          </div>
+        )}
+
+        {data.flagged.length === 0 && cleanIngredients.length === 0 && data.ingredientsRaw.trim() === "" && (
+          <p className="mt-3 text-[14px] text-muted-foreground">
+            No ingredient data available yet for this product.
+          </p>
+        )}
       </div>
+
+      {/* Cleaner options */}
+      {alternatives.length > 0 && (
+        <>
+          <div className="mx-6 mt-8 h-px bg-border" />
+          <div className="mt-6 px-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                Cleaner options
+              </h2>
+              <button
+                onClick={() => navigate("/alternatives", { state: { product: data } })}
+                className="text-[12px] font-semibold text-primary"
+              >
+                See all →
+              </button>
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              {alternatives.map((alt) => (
+                <MiniAltCard key={alt.name} alt={alt} scannedName={data.name} scannedScore={data.score} />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+68px)] pt-4">
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate("/scanner")}
-            className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-3.5 text-sm font-semibold text-foreground transition-colors active:bg-muted"
-          >
-            <ScanLine size={18} strokeWidth={2} />
-            Scan another
-          </button>
-          <button
-            onClick={() => navigate("/alternatives", { state: { product: data } })}
-            className="flex-1 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
-          >
-            See clean alternatives
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/scanner")}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
+        >
+          <ScanLine size={18} strokeWidth={2} />
+          Scan another
+        </button>
       </div>
 
       {/* Remaining scans banner */}
