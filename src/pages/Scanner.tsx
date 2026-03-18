@@ -249,10 +249,7 @@ const Scanner = () => {
     scanningRef.current = false;
     if (html5QrRef.current) {
       try {
-        const state = html5QrRef.current.getState();
-        if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
-          await html5QrRef.current.stop();
-        }
+        await html5QrRef.current.stop();
       } catch {}
       try { html5QrRef.current.clear(); } catch {}
       html5QrRef.current = null;
