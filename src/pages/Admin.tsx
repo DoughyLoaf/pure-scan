@@ -176,7 +176,7 @@ function Dashboard() {
   const aiMetrics = getAICostMetrics();
 
   const fetchAll = useCallback(async () => {
-    const [s, sess, a, u, p, bs, is_, sub] = await Promise.all([
+    const [s, sess, a, u, p, bs, is_, sub, eq] = await Promise.all([
       supabase.from("scans").select("*").order("created_at", { ascending: false }),
       supabase.from("sessions").select("*"),
       supabase.from("alternative_taps").select("*"),
@@ -185,6 +185,7 @@ function Dashboard() {
       supabase.from("brand_stats").select("*").order("total_scans", { ascending: false }),
       supabase.from("ingredient_stats").select("*").order("total_occurrences", { ascending: false }).limit(20),
       supabase.from("product_submissions").select("*").eq("status", "pending").order("created_at", { ascending: false }),
+      supabase.from("enrichment_queue" as any).select("*").order("created_at", { ascending: false }).limit(50),
     ]);
     setScans((s.data ?? []) as Scan[]);
     setSessions((sess.data ?? []) as Session[]);
@@ -194,6 +195,7 @@ function Dashboard() {
     setBrandStats((bs.data ?? []) as BrandStat[]);
     setIngredientStats((is_.data ?? []) as IngredientStat[]);
     setSubmissions((sub.data ?? []) as Submission[]);
+    setEnrichmentQueue((eq.data ?? []) as any[]);
     setLoading(false);
   }, []);
 
