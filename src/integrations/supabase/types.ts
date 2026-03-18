@@ -240,20 +240,24 @@ export type Database = {
           categories_raw: string | null
           country_code: string | null
           created_at: string | null
+          data_confidence: string | null
           data_source: string | null
           enrichment_source: string | null
           first_scanned_at: string | null
           flagged_categories: string[] | null
           flagged_count: number | null
           flagged_ingredients: string[] | null
+          front_image_url: string | null
           id: string
           image_url: string | null
           ingredients_hash: string | null
+          ingredients_image_url: string | null
           ingredients_raw: string | null
           is_water: boolean | null
           last_enriched_at: string | null
           last_scanned_at: string | null
           manually_verified: boolean | null
+          needs_review: boolean | null
           product_name: string
           pure_score: number | null
           scan_count: number | null
@@ -270,20 +274,24 @@ export type Database = {
           categories_raw?: string | null
           country_code?: string | null
           created_at?: string | null
+          data_confidence?: string | null
           data_source?: string | null
           enrichment_source?: string | null
           first_scanned_at?: string | null
           flagged_categories?: string[] | null
           flagged_count?: number | null
           flagged_ingredients?: string[] | null
+          front_image_url?: string | null
           id?: string
           image_url?: string | null
           ingredients_hash?: string | null
+          ingredients_image_url?: string | null
           ingredients_raw?: string | null
           is_water?: boolean | null
           last_enriched_at?: string | null
           last_scanned_at?: string | null
           manually_verified?: boolean | null
+          needs_review?: boolean | null
           product_name: string
           pure_score?: number | null
           scan_count?: number | null
@@ -300,20 +308,24 @@ export type Database = {
           categories_raw?: string | null
           country_code?: string | null
           created_at?: string | null
+          data_confidence?: string | null
           data_source?: string | null
           enrichment_source?: string | null
           first_scanned_at?: string | null
           flagged_categories?: string[] | null
           flagged_count?: number | null
           flagged_ingredients?: string[] | null
+          front_image_url?: string | null
           id?: string
           image_url?: string | null
           ingredients_hash?: string | null
+          ingredients_image_url?: string | null
           ingredients_raw?: string | null
           is_water?: boolean | null
           last_enriched_at?: string | null
           last_scanned_at?: string | null
           manually_verified?: boolean | null
+          needs_review?: boolean | null
           product_name?: string
           pure_score?: number | null
           scan_count?: number | null

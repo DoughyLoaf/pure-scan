@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2, ChevronDown, Info, X, ScanLine, Leaf } from "lucide-react";
+import { ArrowLeft, Share2, ChevronDown, Info, X, ScanLine, Leaf, Camera } from "lucide-react";
 import { isPro, getScansRemaining, FREE_DAILY_LIMIT_VALUE } from "@/lib/scan-limits";
 import type { ProductResult, FlaggedIngredient } from "@/lib/scoring";
 import ResultSkeleton from "@/components/ResultSkeleton";
@@ -496,8 +496,9 @@ const Result = () => {
   const [scansRemaining, setScansRemaining] = useState<number>(FREE_DAILY_LIMIT_VALUE);
   const [flaggedCategories] = useState(() => getUserFlaggedCategories());
 
-  const locationState = location.state as { product?: ProductResult } | null;
+  const locationState = location.state as { product?: ProductResult; fromPhotoScan?: boolean } | null;
   const data = locationState?.product ?? DEMO_DATA;
+  const fromPhotoScan = locationState?.fromPhotoScan === true;
 
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 200);
@@ -578,6 +579,16 @@ const Result = () => {
 
         <MethodologySection />
       </div>
+
+      {/* Photo scan attribution */}
+      {fromPhotoScan && (
+        <div className="mx-6 mt-5 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <Camera size={16} className="mt-0.5 shrink-0 text-primary" strokeWidth={2} />
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">Score based on your photo scan</span> — thanks for adding this to Pure!
+          </p>
+        </div>
+      )}
 
       {/* Missing ingredients notice */}
       {data.ingredientsRaw.trim() === "" && (
