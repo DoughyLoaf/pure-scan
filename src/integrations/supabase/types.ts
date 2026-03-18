@@ -50,6 +50,171 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_stats: {
+        Row: {
+          avg_pure_score: number | null
+          brand: string
+          last_updated_at: string | null
+          most_common_flag: string | null
+          total_products: number | null
+          total_scans: number | null
+        }
+        Insert: {
+          avg_pure_score?: number | null
+          brand: string
+          last_updated_at?: string | null
+          most_common_flag?: string | null
+          total_products?: number | null
+          total_scans?: number | null
+        }
+        Update: {
+          avg_pure_score?: number | null
+          brand?: string
+          last_updated_at?: string | null
+          most_common_flag?: string | null
+          total_products?: number | null
+          total_scans?: number | null
+        }
+        Relationships: []
+      }
+      ingredient_stats: {
+        Row: {
+          category: string | null
+          ingredient_name: string
+          last_seen_at: string | null
+          total_occurrences: number | null
+          unique_products: number | null
+        }
+        Insert: {
+          category?: string | null
+          ingredient_name: string
+          last_seen_at?: string | null
+          total_occurrences?: number | null
+          unique_products?: number | null
+        }
+        Update: {
+          category?: string | null
+          ingredient_name?: string
+          last_seen_at?: string | null
+          total_occurrences?: number | null
+          unique_products?: number | null
+        }
+        Relationships: []
+      }
+      product_submissions: {
+        Row: {
+          barcode: string
+          brand: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          ingredients_raw: string | null
+          notes: string | null
+          product_name: string | null
+          session_id: string
+          status: string | null
+        }
+        Insert: {
+          barcode: string
+          brand?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          ingredients_raw?: string | null
+          notes?: string | null
+          product_name?: string | null
+          session_id: string
+          status?: string | null
+        }
+        Update: {
+          barcode?: string
+          brand?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          ingredients_raw?: string | null
+          notes?: string | null
+          product_name?: string | null
+          session_id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          barcode: string
+          brand: string | null
+          categories_raw: string | null
+          country_code: string | null
+          created_at: string | null
+          data_source: string | null
+          first_scanned_at: string | null
+          flagged_categories: string[] | null
+          flagged_count: number | null
+          flagged_ingredients: string[] | null
+          id: string
+          image_url: string | null
+          ingredients_raw: string | null
+          is_water: boolean | null
+          last_scanned_at: string | null
+          manually_verified: boolean | null
+          product_name: string
+          pure_score: number | null
+          scan_count: number | null
+          updated_at: string | null
+          user_submitted: boolean | null
+          water_brand: string | null
+        }
+        Insert: {
+          barcode: string
+          brand?: string | null
+          categories_raw?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          data_source?: string | null
+          first_scanned_at?: string | null
+          flagged_categories?: string[] | null
+          flagged_count?: number | null
+          flagged_ingredients?: string[] | null
+          id?: string
+          image_url?: string | null
+          ingredients_raw?: string | null
+          is_water?: boolean | null
+          last_scanned_at?: string | null
+          manually_verified?: boolean | null
+          product_name: string
+          pure_score?: number | null
+          scan_count?: number | null
+          updated_at?: string | null
+          user_submitted?: boolean | null
+          water_brand?: string | null
+        }
+        Update: {
+          barcode?: string
+          brand?: string | null
+          categories_raw?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          data_source?: string | null
+          first_scanned_at?: string | null
+          flagged_categories?: string[] | null
+          flagged_count?: number | null
+          flagged_ingredients?: string[] | null
+          id?: string
+          image_url?: string | null
+          ingredients_raw?: string | null
+          is_water?: boolean | null
+          last_scanned_at?: string | null
+          manually_verified?: boolean | null
+          product_name?: string
+          pure_score?: number | null
+          scan_count?: number | null
+          updated_at?: string | null
+          user_submitted?: boolean | null
+          water_brand?: string | null
+        }
+        Relationships: []
+      }
       scans: {
         Row: {
           app_version: string | null
@@ -166,8 +331,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_ingredient: {
+        Args: { p_category: string; p_name: string }
+        Returns: undefined
+      }
       increment_session_scan: {
         Args: { p_flagged_count: number; p_session_id: string }
+        Returns: undefined
+      }
+      update_brand_stats: {
+        Args: { p_brand: string; p_flag: string; p_score: number }
+        Returns: undefined
+      }
+      upsert_product: {
+        Args: {
+          p_barcode: string
+          p_brand: string
+          p_categories_raw: string
+          p_flagged_categories: string[]
+          p_flagged_count: number
+          p_flagged_ingredients: string[]
+          p_image_url: string
+          p_ingredients_raw: string
+          p_is_water: boolean
+          p_product_name: string
+          p_pure_score: number
+          p_water_brand: string
+        }
         Returns: undefined
       }
     }
