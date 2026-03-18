@@ -76,40 +76,34 @@ iframe[src*="lovable"] {
   display: none !important;
 }
 
-/* html5-qrcode: make video fill its container and hide default UI */
+/* html5-qrcode: let the library own the full-screen camera stream */
 #qr-reader-element {
   border: none !important;
-  width: 100% !important;
-  height: 100% !important;
-  overflow: hidden !important;
-}
-#qr-reader-element video {
-  object-fit: cover !important;
-  width: 100vw !important;
-  height: 100vh !important;
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
 }
-/* Hide all default html5-qrcode UI chrome */
+#qr-reader-element video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
 #qr-reader-element__dashboard,
 #qr-reader-element__dashboard_section,
 #qr-reader-element__dashboard_section_csr,
 #qr-reader-element__dashboard_section_fsr,
 #qr-reader-element__status_span,
 #qr-reader-element__header_message,
-#qr-reader-element > div:not(:first-child) {
+#qr-reader-element img,
+#qr-reader-element__scan_region > img {
   display: none !important;
 }
 #qr-reader-element__scan_region {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
   min-height: 100vh !important;
-}
-#qr-reader-element__scan_region > img,
-#qr-reader-element img {
-  display: none !important;
 }
