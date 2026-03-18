@@ -33,7 +33,99 @@ const CornerBrackets = () => {
 };
 
 
-const Scanner = () => {
+/* ─── Not Found Panel with submission form ─── */
+function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handleManualIngredients }: {
+  barcode: string;
+  manualIngredients: string;
+  setManualIngredients: (v: string) => void;
+  handleManualIngredients: () => void;
+}) {
+  const [showSubmit, setShowSubmit] = useState(false);
+  const [subName, setSubName] = useState("");
+  const [subBrand, setSubBrand] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = () => {
+    if (!subName.trim()) return;
+    try {
+      supabase.from("product_submissions").insert({
+        session_id: getSessionId(),
+        barcode,
+        product_name: subName.trim() || null,
+        brand: subBrand.trim() || null,
+        ingredients_raw: manualIngredients.trim() || null,
+      } as any).then(() => {});
+    } catch { /* fire & forget */ }
+    setSubmitted(true);
+  };
+
+  return (
+    <div className="mt-4 animate-fade-in">
+      <p className="text-sm text-muted-foreground">
+        We don't have this product yet. You can still enter ingredients manually.
+      </p>
+      <textarea
+        placeholder="Paste or type the ingredient list here…"
+        value={manualIngredients}
+        onChange={(e) => setManualIngredients(e.target.value)}
+        rows={3}
+        className="mt-3 w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+      />
+      <button
+        onClick={handleManualIngredients}
+        disabled={!manualIngredients.trim()}
+        className="mt-2 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+      >
+        Analyze ingredients
+      </button>
+
+      {/* Community submission */}
+      {!submitted ? (
+        <>
+          <button
+            onClick={() => setShowSubmit(!showSubmit)}
+            className="mt-3 flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+          >
+            Help us add this product →
+            {showSubmit ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {showSubmit && (
+            <div className="mt-2 space-y-2 animate-fade-in">
+              <input
+                type="text"
+                placeholder="Product name"
+                value={subName}
+                onChange={(e) => setSubName(e.target.value)}
+                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                type="text"
+                placeholder="Brand (optional)"
+                value={subBrand}
+                onChange={(e) => setSubBrand(e.target.value)}
+                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={!subName.trim()}
+                className="w-full rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors disabled:opacity-50 hover:bg-primary/20"
+              >
+                Submit product info
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="mt-3 flex items-center gap-2 text-xs text-primary">
+          <Check size={14} />
+          <span>Thank you — we'll add this soon</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
   const navigate = useNavigate();
   const [torch, setTorch] = useState(false);
   const [showManual, setShowManual] = useState(false);
