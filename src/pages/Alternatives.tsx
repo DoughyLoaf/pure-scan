@@ -616,35 +616,30 @@ const Alternatives = () => {
       </div>
 
       <div className="mt-6 px-5 sm:px-6">
-        {/* 1. Comparison header */}
-        <ComparisonHeader product={product} topAlt={topAlt} />
+        {/* Section header */}
+        <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+          Cleaner alternatives to{" "}
+          <span className="text-primary">{product.name}</span>
+        </h1>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Sorted by Pure Score — best first
+        </p>
 
-        {/* 5. Section label */}
-        <div className="mt-6">
-          <h1 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-            Better options in this category
-          </h1>
-          <p className="mt-0.5 text-[11px] text-muted-foreground/60">
-            Sorted by Pure Score — highest first
-          </p>
-        </div>
-
-        {/* 2/3/4. Sorted cards with improvement badges */}
-        <div className="mt-4 flex flex-col gap-3">
+        {/* Sorted cards */}
+        <div className="mt-4 flex flex-col gap-2">
           {sorted.map((alt) => (
             <AlternativeCard
               key={alt.name}
               alt={alt}
-              productScore={product.score}
               flaggedCategories={flaggedCategories}
             />
           ))}
         </div>
 
-        {/* 7. Footer */}
+        {/* Footer */}
         <div className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Info size={13} strokeWidth={1.8} />
-          Pure scores are based on ingredient analysis. Always check labels before purchasing.
+          Pure scores are based on ingredient analysis. Always check labels.
         </div>
       </div>
     </div>
