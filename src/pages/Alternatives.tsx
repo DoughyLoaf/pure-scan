@@ -106,9 +106,9 @@ const ALT_DB: AltDB = {
   },
   crackers: {
     _default: [
-      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 84, reason: "Grain-free with clean ingredients and no seed oils." },
+      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 84, reason: "Grain-free with clean ingredients and no seed oils.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/300/0125/front_en.3.400.jpg" },
       { name: "Mary's Gone Crackers", brand: "Mary's Gone", score: 81, reason: "Organic whole grain, gluten-free, and no artificial additives." },
-      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and no seed oils." },
+      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and no seed oils.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/6934/front_en.3.400.jpg" },
     ],
   },
   yogurt: {
