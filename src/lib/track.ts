@@ -33,6 +33,41 @@ export function trackScan(product: ProductResult, barcode?: string, isWater = fa
       p_session_id: getSessionId(),
       p_flagged_count: product.flagged.length,
     }).then(() => {});
+
+    // Upsert into products master table
+    if (barcode) {
+      (supabase as any).rpc("upsert_product", {
+        p_barcode: barcode,
+        p_product_name: product.name,
+        p_brand: product.brand,
+        p_pure_score: product.score,
+        p_ingredients_raw: product.ingredientsRaw,
+        p_flagged_count: product.flagged.length,
+        p_flagged_categories: flaggedCategories,
+        p_flagged_ingredients: flaggedIngredients,
+        p_categories_raw: product.categoriesRaw || null,
+        p_image_url: (product as any).imageUrl || null,
+        p_is_water: isWater,
+        p_water_brand: waterBrand || null,
+      }).then(() => {});
+    }
+
+    // Update brand stats
+    if (product.brand && product.brand !== "Unknown Brand") {
+      (supabase as any).rpc("update_brand_stats", {
+        p_brand: product.brand,
+        p_score: product.score,
+        p_flag: flaggedCategories[0] || null,
+      }).then(() => {});
+    }
+
+    // Increment each flagged ingredient
+    for (const flag of product.flagged) {
+      (supabase as any).rpc("increment_ingredient", {
+        p_name: flag.name,
+        p_category: flag.category,
+      }).then(() => {});
+    }
   } catch {
     // Never affect UX
   }

@@ -60,6 +60,21 @@ type Session = {
   scan_count: number; total_ingredients_flagged: number;
   dietary_preferences: string[] | null; platform: string | null;
 };
+type Product = {
+  id: string; barcode: string; product_name: string; brand: string | null;
+  pure_score: number | null; scan_count: number; flagged_ingredients: string[] | null;
+  first_scanned_at: string; last_scanned_at: string;
+};
+type BrandStat = {
+  brand: string; total_scans: number; avg_pure_score: number | null; most_common_flag: string | null;
+};
+type IngredientStat = {
+  ingredient_name: string; total_occurrences: number; category: string | null;
+};
+type Submission = {
+  id: string; created_at: string; session_id: string; barcode: string;
+  product_name: string | null; brand: string | null; status: string | null;
+};
 
 /* ─── password gate ─── */
 function PasswordGate({ onAuth }: { onAuth: () => void }) {
@@ -149,21 +164,33 @@ function Dashboard() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [altTaps, setAltTaps] = useState<AltTap[]>([]);
   const [unknowns, setUnknowns] = useState<UnknownBarcode[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [brandStats, setBrandStats] = useState<BrandStat[]>([]);
+  const [ingredientStats, setIngredientStats] = useState<IngredientStat[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
   const feedTimer = useRef<ReturnType<typeof setInterval>>();
 
   const fetchAll = useCallback(async () => {
-    const [s, sess, a, u] = await Promise.all([
+    const [s, sess, a, u, p, bs, is_, sub] = await Promise.all([
       supabase.from("scans").select("*").order("created_at", { ascending: false }),
       supabase.from("sessions").select("*"),
       supabase.from("alternative_taps").select("*"),
       supabase.from("unknown_barcodes").select("*").order("scan_count", { ascending: false }),
+      supabase.from("products").select("*").order("scan_count", { ascending: false }).limit(50),
+      supabase.from("brand_stats").select("*").order("total_scans", { ascending: false }),
+      supabase.from("ingredient_stats").select("*").order("total_occurrences", { ascending: false }).limit(20),
+      supabase.from("product_submissions").select("*").eq("status", "pending").order("created_at", { ascending: false }),
     ]);
     setScans((s.data ?? []) as Scan[]);
     setSessions((sess.data ?? []) as Session[]);
     setAltTaps((a.data ?? []) as AltTap[]);
     setUnknowns((u.data ?? []) as UnknownBarcode[]);
+    setProducts((p.data ?? []) as Product[]);
+    setBrandStats((bs.data ?? []) as BrandStat[]);
+    setIngredientStats((is_.data ?? []) as IngredientStat[]);
+    setSubmissions((sub.data ?? []) as Submission[]);
     setLoading(false);
   }, []);
 
@@ -220,8 +247,8 @@ function Dashboard() {
 
   const PIE_COLORS = ["#16a34a", "#22c55e", "#4ade80", "#86efac", "#bbf7d0", "#eab308", "#f97316"];
 
-  /* ─ Most scanned products ─ */
-  const topProducts = useMemo(() => {
+  /* ─ Most scanned products (from scans table) ─ */
+  const topScannedProducts = useMemo(() => {
     const map: Record<string, { name: string; brand: string; count: number; totalScore: number; flags: Record<string, number>; firstScan: string }> = {};
     scans.forEach(s => {
       const key = (s.product_name ?? "Unknown").toLowerCase();
@@ -340,9 +367,81 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Most Scanned Products */}
+        {/* ══════ NEW: Products Database ══════ */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm text-gray-400 mb-4">Top 25 Most Scanned Products</h3>
+          <h3 className="text-sm text-gray-400 mb-4">Products Database — Top 50 by Scan Count</h3>
+          <SortableTable
+            id="id"
+            columns={[
+              { key: "rank", label: "#" },
+              { key: "product_name", label: "Product Name" },
+              { key: "brand", label: "Brand" },
+              { key: "scan_count", label: "Times Scanned" },
+              { key: "pure_score", label: "Pure Score", render: (v) => <span style={{ color: scoreColor(v) }}>{v ?? "—"}</span> },
+              { key: "top_flag", label: "Top Flag" },
+              { key: "first_scanned_at", label: "First Seen", render: (v) => fmtDate(v) },
+              { key: "last_scanned_at", label: "Last Seen", render: (v) => fmtDate(v) },
+            ]}
+            data={products.map((p, i) => ({
+              ...p,
+              rank: i + 1,
+              top_flag: (p.flagged_ingredients ?? [])[0] ?? "—",
+            }))}
+          />
+        </div>
+
+        {/* ══════ NEW: Brand Intelligence ══════ */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm text-gray-400 mb-4">Brand Intelligence</h3>
+          <SortableTable
+            id="brand"
+            columns={[
+              { key: "brand", label: "Brand" },
+              { key: "total_scans", label: "Total Scans" },
+              { key: "avg_pure_score", label: "Avg Pure Score", render: (v) => <span style={{ color: scoreColor(v != null ? Math.round(Number(v)) : null) }}>{v != null ? Number(v).toFixed(1) : "—"}</span> },
+              { key: "most_common_flag", label: "Most Common Flag" },
+            ]}
+            data={brandStats}
+          />
+        </div>
+
+        {/* ══════ NEW: Ingredient Intelligence ══════ */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm text-gray-400 mb-4">Ingredient Intelligence — Top 20</h3>
+          <SortableTable
+            id="ingredient_name"
+            columns={[
+              { key: "ingredient_name", label: "Ingredient Name" },
+              { key: "category", label: "Category" },
+              { key: "total_occurrences", label: "Total Occurrences" },
+            ]}
+            data={ingredientStats}
+          />
+        </div>
+
+        {/* ══════ NEW: Pending Submissions ══════ */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm text-gray-400 mb-4">Pending Submissions — User-Contributed Data Queue</h3>
+          {submissions.length === 0 ? (
+            <p className="text-gray-600 text-sm py-4 text-center">No pending submissions</p>
+          ) : (
+            <SortableTable
+              id="id"
+              columns={[
+                { key: "barcode", label: "Barcode", render: (v) => <code className="text-green-400">{v}</code> },
+                { key: "product_name", label: "Product Name" },
+                { key: "brand", label: "Brand" },
+                { key: "created_at", label: "Submitted", render: (v) => fmtTime(v) },
+                { key: "session_id", label: "Session", render: (v) => <span className="text-gray-500 text-xs">{String(v).slice(0, 8)}…</span> },
+              ]}
+              data={submissions}
+            />
+          )}
+        </div>
+
+        {/* Most Scanned Products (from scans) */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm text-gray-400 mb-4">Top 25 Most Scanned Products (Scan Log)</h3>
           <SortableTable
             id="rank"
             columns={[
@@ -354,7 +453,7 @@ function Dashboard() {
               { key: "top_flag", label: "Most Common Flag" },
               { key: "first_scanned", label: "First Scanned" },
             ]}
-            data={topProducts}
+            data={topScannedProducts}
           />
         </div>
 
