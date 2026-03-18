@@ -625,6 +625,7 @@ const Alternatives = () => {
     );
   }
 
+  const category = inferCategory(product.name, product.brand);
   const alternatives = getAlternatives(product);
   const sorted = [...alternatives].sort((a, b) => b.score - a.score);
   const topAlt = sorted[0];
