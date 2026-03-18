@@ -58,6 +58,10 @@ const App = forwardRef<HTMLDivElement>((_props, ref) => {
   const [showSplash, setShowSplash] = useState(true);
   const hideSplash = useCallback(() => setShowSplash(false), []);
 
+  useEffect(() => {
+    initSession();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

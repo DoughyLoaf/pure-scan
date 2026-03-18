@@ -5,6 +5,7 @@ import type { ProductResult } from "@/lib/scoring";
 import { WATER_DATABASE } from "@/lib/water-database";
 import type { WaterBrand } from "@/lib/water-database";
 import { getAlternatives, inferCategory, type AlternativeProduct } from "@/lib/alternatives-database";
+import { trackAlternativeTap } from "@/lib/track";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   chips: "🫙", cereal: "🥣", crackers: "🍪", milk: "🥛", juice: "🧃",

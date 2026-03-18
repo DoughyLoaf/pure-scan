@@ -123,16 +123,19 @@ const Scanner = () => {
 
       setScanLoading(true);
       try {
+        lastBarcode.current = code;
         const product = await fetchProduct(code);
         if (product) {
           navigateWithScan(product);
         } else {
+          trackUnknownBarcode(code);
           setScanLoading(false);
           setBarcode(code);
           setNotFound(true);
           setShowManual(true);
         }
       } catch {
+        trackUnknownBarcode(code);
         setScanLoading(false);
         setBarcode(code);
         setNotFound(true);
