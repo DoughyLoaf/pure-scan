@@ -9,5 +9,5 @@ describe("inferCategory popcorn fix", () => {
   it("Kettle Corn → popcorn", () => expect(inferCategory("Kettle Corn", "")).toBe("popcorn"));
   it("generic pop → soda", () => expect(inferCategory("Pop", "")).toBe("soda"));
   it("Coca Cola → soda", () => expect(inferCategory("Coca Cola", "")).toBe("soda"));
-  it("Pringles → chips", () => expect(inferCategory("Pringles Original Chips", "Pringles")).toBe("chips"));
+  it("Pringles → chips", () => expect(inferCategory("Pringles Original", "Pringles")).toBe("chips"));
 });

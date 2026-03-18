@@ -265,7 +265,7 @@ export function inferCategory(name: string, brand?: string): string {
   if (/dressing|vinaigrette|ranch|caesar/i.test(n)) return "salad dressing";
   if (/cooking\s*oil|olive\s*oil|avocado\s*oil|coconut\s*oil|canola|vegetable\s*oil/i.test(n)) return "cooking oil";
   if (/popcorn|pop corn|kettle corn|kettlecorn|smartfood|boom chicka|lesser evil|skinny pop|skinnypop|angie|quinn popcorn/i.test(n)) return "popcorn";
-  if (/chip|crisp|frito|dorito|cheeto/i.test(n)) return "chips";
+  if (/chip|crisp|frito|dorito|cheeto|pringle/i.test(n)) return "chips";
   if (/cereal|granola|flake|crunch|cheerio|loop|oatmeal/i.test(n)) return "cereal";
   if (/cracker|pretzel|goldfish/i.test(n)) return "crackers";
   if (/yogurt|yoghurt|kefir/i.test(n)) return "yogurt";
