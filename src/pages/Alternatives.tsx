@@ -10,7 +10,33 @@ interface Alternative {
   brand: string;
   score: number;
   reason: string;
+  imageUrl?: string;
 }
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  chips: "🫙",
+  cereal: "🥣",
+  crackers: "🍪",
+  milk: "🥛",
+  juice: "🧃",
+  chocolate: "🍫",
+  popcorn: "🍿",
+  noodles: "🍝",
+  "peanut butter": "🥜",
+  "salad dressing": "🥗",
+  "cooking oil": "🫙",
+  candy: "🍬",
+  "ice cream": "🧊",
+  bread: "🍞",
+  sauce: "🥫",
+  bars: "💪",
+  "energy drinks": "⚡",
+  "frozen meals": "🧇",
+  yogurt: "🍦",
+  soda: "🥤",
+  cookies: "🍪",
+  snack: "🫙",
+};
 
 // ── Category inference from product name ───────────────────────────
 function inferCategory(name: string, brand?: string): string {
