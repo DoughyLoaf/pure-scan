@@ -312,31 +312,7 @@ const MiniScore = ({ score }: { score: number }) => {
   );
 };
 
-const ComparisonHeader = ({ product, topAlt }: { product: ProductResult; topAlt: Alternative }) => {
-  const improvement = topAlt.score - product.score;
-  const truncate = (s: string, len: number) => s.length > len ? s.slice(0, len) + "…" : s;
-
-  return (
-    <div className="flex items-center justify-center gap-2 flex-wrap">
-      <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5">
-        <span className="text-xs font-bold tabular-nums" style={{ fontFamily: "var(--font-display)", color: scoreColor(product.score) }}>
-          {product.score}
-        </span>
-        <span className="text-xs font-medium text-foreground">{truncate(product.name, 12)}</span>
-      </div>
-      <div className="flex items-center gap-0.5 text-primary">
-        <span className="text-[10px] font-bold">+{improvement}</span>
-        <ArrowRight size={14} strokeWidth={2.5} />
-      </div>
-      <div className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5">
-        <span className="text-xs font-bold tabular-nums text-primary" style={{ fontFamily: "var(--font-display)" }}>
-          {topAlt.score}
-        </span>
-        <span className="text-xs font-medium text-foreground">{truncate(topAlt.name, 12)}</span>
-      </div>
-    </div>
-  );
-};
+// ComparisonHeader removed per redesign
 
 const AlternativeCard = ({ alt, productScore, flaggedCategories }: { alt: Alternative; productScore: number; flaggedCategories: string[] }) => {
   const improvement = alt.score - productScore;
