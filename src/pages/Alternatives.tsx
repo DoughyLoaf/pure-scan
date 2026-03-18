@@ -340,42 +340,73 @@ const MiniScore = ({ score }: { score: number }) => {
 
 // ComparisonHeader removed per redesign
 
-const AlternativeCard = ({ alt, flaggedCategories }: { alt: Alternative; flaggedCategories: string[] }) => {
+const ProductImage = ({ imageUrl, category }: { imageUrl?: string; category: string }) => {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">(imageUrl ? "loading" : "error");
+  const emoji = CATEGORY_EMOJI[category] || "🫙";
+
+  if (!imageUrl || status === "error") {
+    return (
+      <div className="flex h-[120px] w-full items-center justify-center rounded-t-2xl bg-muted">
+        <span className="text-[40px] select-none">{emoji}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-[120px] w-full overflow-hidden rounded-t-2xl bg-muted">
+      {status === "loading" && (
+        <div className="absolute inset-0 animate-pulse bg-muted" />
+      )}
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-full w-full object-contain p-3"
+        onLoad={() => setStatus("loaded")}
+        onError={() => setStatus("error")}
+      />
+    </div>
+  );
+};
+
+const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: Alternative; flaggedCategories: string[]; category: string }) => {
   const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex gap-3">
-        {/* Left column: score ring */}
-        <div className="flex items-start pt-1">
-          <MiniScore score={alt.score} />
-        </div>
-        {/* Right column */}
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-            {alt.brand}
-          </p>
-          <h3 className="text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-            {alt.name}
-          </h3>
-          <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-2">
-            {alt.reason}
-          </p>
-          <div className="mt-2 flex items-center justify-between">
-            <div>
-              {fixesTag && (
-                <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  No {fixesTag}
-                </span>
-              )}
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <ProductImage imageUrl={alt.imageUrl} category={category} />
+      <div className="border-t border-border p-4">
+        <div className="flex gap-3">
+          {/* Left column: score ring */}
+          <div className="flex items-start pt-1">
+            <MiniScore score={alt.score} />
+          </div>
+          {/* Right column */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              {alt.brand}
+            </p>
+            <h3 className="text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+              {alt.name}
+            </h3>
+            <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-2">
+              {alt.reason}
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <div>
+                {fixesTag && (
+                  <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    No {fixesTag}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {}}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                type="button"
+              >
+                Find near me →
+              </button>
             </div>
-            <button
-              onClick={() => {}}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              type="button"
-            >
-              Find near me →
-            </button>
           </div>
         </div>
       </div>
