@@ -498,7 +498,7 @@ const Scanner = () => {
     }
 
     // Try from html5-qrcode's internal video (barcode mode)
-    const qrVideo = document.querySelector("#qr-reader video") as HTMLVideoElement | null;
+    const qrVideo = document.querySelector("#qr-reader-element video") as HTMLVideoElement | null;
     if (qrVideo && qrVideo.videoWidth > 0) {
       const canvas = canvasRef.current || document.createElement("canvas");
       canvas.width = qrVideo.videoWidth;
