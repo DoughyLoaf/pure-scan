@@ -306,7 +306,7 @@ const Alternatives = () => {
 
         <div className="mt-4 flex flex-col gap-2">
           {alternatives.map((alt) => (
-            <AlternativeCard key={alt.name} alt={alt} flaggedCategories={flaggedCategories} category={category} />
+            <AlternativeCard key={alt.name} alt={alt} flaggedCategories={flaggedCategories} category={category} scannedProductName={product.name} scannedProductScore={product.score} />
           ))}
         </div>
 
