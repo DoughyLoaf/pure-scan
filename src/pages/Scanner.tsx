@@ -127,6 +127,7 @@ function NotFoundPanel({ barcode, manualIngredients, setManualIngredients, handl
 
 
 const Scanner = () => {
+  const navigate = useNavigate();
   const [torch, setTorch] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [barcode, setBarcode] = useState("");
