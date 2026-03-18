@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Package, ListChecks } from "lucide-react";
-import { Html5Qrcode } from "html5-qrcode";
+// html5-qrcode loaded via CDN in index.html — access via window.Html5Qrcode
+declare const Html5Qrcode: any;
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan } from "@/lib/scan-limits";
