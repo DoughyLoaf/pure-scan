@@ -186,14 +186,21 @@ const Scanner = () => {
     }
   }, [blocked, handleDetectedBarcode, scannerStarted, showManual, stopScanner]);
 
+  const lastBarcode = useRef<string>("");
+
   const navigateWithScan = (product: ProductResult) => {
     if (!canScan()) { navigate("/paywall"); return; }
     const { remaining } = recordScan();
     addScanToHistory(product);
     setShowPulse(true);
     const categories = (product as any).categoriesRaw ?? "";
-    if (isWaterProduct(product.name, categories)) {
-      const waterBrand = findWaterBrand(product.name, product.brand);
+    const isWater = isWaterProduct(product.name, categories);
+    const waterBrand = isWater ? findWaterBrand(product.name, product.brand) : undefined;
+
+    // Fire-and-forget analytics
+    trackScan(product, lastBarcode.current || undefined, isWater, waterBrand?.name);
+
+    if (isWater) {
       setTimeout(() => {
         navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
       }, 350);
