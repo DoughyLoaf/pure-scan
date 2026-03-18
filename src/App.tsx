@@ -49,6 +49,7 @@ const AnimatedRoutes = () => {
         <Route path="/paywall" element={<Paywall />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
