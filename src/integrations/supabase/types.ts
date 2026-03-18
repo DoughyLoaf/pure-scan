@@ -79,37 +79,49 @@ export type Database = {
       }
       enrichment_queue: {
         Row: {
+          attempts: number | null
           barcode: string | null
           brand: string | null
           confidence: string | null
           created_at: string
+          enriched_at: string | null
+          error_message: string | null
           id: string
           image_size_bytes: number | null
           ingredient_text_raw: string | null
+          last_attempted_at: string | null
           processing_status: string
           product_name: string | null
           session_id: string
         }
         Insert: {
+          attempts?: number | null
           barcode?: string | null
           brand?: string | null
           confidence?: string | null
           created_at?: string
+          enriched_at?: string | null
+          error_message?: string | null
           id?: string
           image_size_bytes?: number | null
           ingredient_text_raw?: string | null
+          last_attempted_at?: string | null
           processing_status?: string
           product_name?: string | null
           session_id: string
         }
         Update: {
+          attempts?: number | null
           barcode?: string | null
           brand?: string | null
           confidence?: string | null
           created_at?: string
+          enriched_at?: string | null
+          error_message?: string | null
           id?: string
           image_size_bytes?: number | null
           ingredient_text_raw?: string | null
+          last_attempted_at?: string | null
           processing_status?: string
           product_name?: string | null
           session_id?: string
@@ -137,6 +149,48 @@ export type Database = {
           last_seen_at?: string | null
           total_occurrences?: number | null
           unique_products?: number | null
+        }
+        Relationships: []
+      }
+      ingredients: {
+        Row: {
+          aliases: string[] | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          regulatory_notes: string | null
+          risk_level: string | null
+          score_penalty: number | null
+          updated_at: string | null
+          why_flagged: string | null
+        }
+        Insert: {
+          aliases?: string[] | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          regulatory_notes?: string | null
+          risk_level?: string | null
+          score_penalty?: number | null
+          updated_at?: string | null
+          why_flagged?: string | null
+        }
+        Update: {
+          aliases?: string[] | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          regulatory_notes?: string | null
+          risk_level?: string | null
+          score_penalty?: number | null
+          updated_at?: string | null
+          why_flagged?: string | null
         }
         Relationships: []
       }
@@ -187,19 +241,25 @@ export type Database = {
           country_code: string | null
           created_at: string | null
           data_source: string | null
+          enrichment_source: string | null
           first_scanned_at: string | null
           flagged_categories: string[] | null
           flagged_count: number | null
           flagged_ingredients: string[] | null
           id: string
           image_url: string | null
+          ingredients_hash: string | null
           ingredients_raw: string | null
           is_water: boolean | null
+          last_enriched_at: string | null
           last_scanned_at: string | null
           manually_verified: boolean | null
           product_name: string
           pure_score: number | null
           scan_count: number | null
+          score_override: number | null
+          score_override_by: string | null
+          score_override_reason: string | null
           updated_at: string | null
           user_submitted: boolean | null
           water_brand: string | null
@@ -211,19 +271,25 @@ export type Database = {
           country_code?: string | null
           created_at?: string | null
           data_source?: string | null
+          enrichment_source?: string | null
           first_scanned_at?: string | null
           flagged_categories?: string[] | null
           flagged_count?: number | null
           flagged_ingredients?: string[] | null
           id?: string
           image_url?: string | null
+          ingredients_hash?: string | null
           ingredients_raw?: string | null
           is_water?: boolean | null
+          last_enriched_at?: string | null
           last_scanned_at?: string | null
           manually_verified?: boolean | null
           product_name: string
           pure_score?: number | null
           scan_count?: number | null
+          score_override?: number | null
+          score_override_by?: string | null
+          score_override_reason?: string | null
           updated_at?: string | null
           user_submitted?: boolean | null
           water_brand?: string | null
@@ -235,24 +301,80 @@ export type Database = {
           country_code?: string | null
           created_at?: string | null
           data_source?: string | null
+          enrichment_source?: string | null
           first_scanned_at?: string | null
           flagged_categories?: string[] | null
           flagged_count?: number | null
           flagged_ingredients?: string[] | null
           id?: string
           image_url?: string | null
+          ingredients_hash?: string | null
           ingredients_raw?: string | null
           is_water?: boolean | null
+          last_enriched_at?: string | null
           last_scanned_at?: string | null
           manually_verified?: boolean | null
           product_name?: string
           pure_score?: number | null
           scan_count?: number | null
+          score_override?: number | null
+          score_override_by?: string | null
+          score_override_reason?: string | null
           updated_at?: string | null
           user_submitted?: boolean | null
           water_brand?: string | null
         }
         Relationships: []
+      }
+      reformulations: {
+        Row: {
+          barcode: string
+          detected_at: string | null
+          id: string
+          new_ingredients: string | null
+          new_score: number | null
+          notification_sent: boolean | null
+          old_ingredients: string | null
+          old_score: number | null
+          product_id: string | null
+          product_name: string | null
+          score_delta: number | null
+        }
+        Insert: {
+          barcode: string
+          detected_at?: string | null
+          id?: string
+          new_ingredients?: string | null
+          new_score?: number | null
+          notification_sent?: boolean | null
+          old_ingredients?: string | null
+          old_score?: number | null
+          product_id?: string | null
+          product_name?: string | null
+          score_delta?: number | null
+        }
+        Update: {
+          barcode?: string
+          detected_at?: string | null
+          id?: string
+          new_ingredients?: string | null
+          new_score?: number | null
+          notification_sent?: boolean | null
+          old_ingredients?: string | null
+          old_score?: number | null
+          product_id?: string | null
+          product_name?: string | null
+          score_delta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reformulations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scans: {
         Row: {
@@ -260,6 +382,7 @@ export type Database = {
           barcode: string | null
           brand: string | null
           categories_raw: string | null
+          city: string | null
           created_at: string
           flagged_categories: string[] | null
           flagged_count: number | null
@@ -267,18 +390,22 @@ export type Database = {
           id: string
           ingredients_raw: string | null
           is_water: boolean | null
+          lat: number | null
+          lng: number | null
           platform: string | null
           product_name: string | null
           pure_score: number | null
           scan_method: string | null
           session_id: string
           water_brand: string | null
+          zip_code: string | null
         }
         Insert: {
           app_version?: string | null
           barcode?: string | null
           brand?: string | null
           categories_raw?: string | null
+          city?: string | null
           created_at?: string
           flagged_categories?: string[] | null
           flagged_count?: number | null
@@ -286,18 +413,22 @@ export type Database = {
           id?: string
           ingredients_raw?: string | null
           is_water?: boolean | null
+          lat?: number | null
+          lng?: number | null
           platform?: string | null
           product_name?: string | null
           pure_score?: number | null
           scan_method?: string | null
           session_id: string
           water_brand?: string | null
+          zip_code?: string | null
         }
         Update: {
           app_version?: string | null
           barcode?: string | null
           brand?: string | null
           categories_raw?: string | null
+          city?: string | null
           created_at?: string
           flagged_categories?: string[] | null
           flagged_count?: number | null
@@ -305,12 +436,15 @@ export type Database = {
           id?: string
           ingredients_raw?: string | null
           is_water?: boolean | null
+          lat?: number | null
+          lng?: number | null
           platform?: string | null
           product_name?: string | null
           pure_score?: number | null
           scan_method?: string | null
           session_id?: string
           water_brand?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -370,7 +504,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_scan_stats: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          enrichment_source: string | null
+          last_enriched_at: string | null
+          last_scanned: string | null
+          product_name: string | null
+          pure_score: number | null
+          total_scans: number | null
+          unique_scanners: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       increment_ingredient: {
