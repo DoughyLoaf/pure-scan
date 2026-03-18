@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, ChevronRight, PackageOpen } from "lucide-react";
 import type { ProductResult } from "@/lib/scoring";
 import { WATER_DATABASE } from "@/lib/water-database";
 import type { WaterBrand } from "@/lib/water-database";
@@ -274,10 +274,17 @@ function getAlternatives(product: ProductResult): Alternative[] {
 
 // ── Components ─────────────────────────────────────────────────────
 
+const scoreColor = (score: number) => {
+  if (score >= 75) return "hsl(var(--primary))";
+  if (score >= 50) return "hsl(38, 92%, 50%)";
+  return "hsl(var(--destructive))";
+};
+
 const MiniScore = ({ score }: { score: number }) => {
   const radius = 18;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
+  const color = scoreColor(score);
 
   return (
     <div className="relative h-12 w-12 shrink-0">
@@ -288,7 +295,7 @@ const MiniScore = ({ score }: { score: number }) => {
           cy="22"
           r={radius}
           fill="none"
-          stroke="hsl(var(--primary))"
+          stroke={color}
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -296,8 +303,8 @@ const MiniScore = ({ score }: { score: number }) => {
         />
       </svg>
       <span
-        className="absolute inset-0 flex items-center justify-center text-xs font-bold text-primary"
-        style={{ fontFamily: "var(--font-display)" }}
+        className="absolute inset-0 flex items-center justify-center text-xs font-bold"
+        style={{ fontFamily: "var(--font-display)", color }}
       >
         {score}
       </span>
@@ -305,28 +312,78 @@ const MiniScore = ({ score }: { score: number }) => {
   );
 };
 
-const AlternativeCard = ({ alt }: { alt: Alternative }) => (
-  <div className="rounded-2xl border border-border bg-card p-4">
-    <div className="flex gap-3 sm:gap-4">
-      <MiniScore score={alt.score} />
-      <div className="flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-          {alt.brand}
-        </p>
-        <h3 className="text-sm sm:text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-          {alt.name}
-        </h3>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          {alt.reason}
-        </p>
+const ComparisonHeader = ({ product, topAlt }: { product: ProductResult; topAlt: Alternative }) => {
+  const improvement = topAlt.score - product.score;
+  const truncate = (s: string, len: number) => s.length > len ? s.slice(0, len) + "…" : s;
+
+  return (
+    <div className="flex items-center justify-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5">
+        <span className="text-xs font-bold tabular-nums" style={{ fontFamily: "var(--font-display)", color: scoreColor(product.score) }}>
+          {product.score}
+        </span>
+        <span className="text-xs font-medium text-foreground">{truncate(product.name, 12)}</span>
+      </div>
+      <div className="flex items-center gap-0.5 text-primary">
+        <span className="text-[10px] font-bold">+{improvement}</span>
+        <ArrowRight size={14} strokeWidth={2.5} />
+      </div>
+      <div className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5">
+        <span className="text-xs font-bold tabular-nums text-primary" style={{ fontFamily: "var(--font-display)" }}>
+          {topAlt.score}
+        </span>
+        <span className="text-xs font-medium text-foreground">{truncate(topAlt.name, 12)}</span>
       </div>
     </div>
-    <button className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-background py-2.5 text-sm font-semibold text-foreground transition-colors active:bg-muted">
-      <MapPin size={14} strokeWidth={2} />
-      Find near me
-    </button>
-  </div>
-);
+  );
+};
+
+const AlternativeCard = ({ alt, productScore, flaggedCategories }: { alt: Alternative; productScore: number; flaggedCategories: string[] }) => {
+  const improvement = alt.score - productScore;
+  const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex gap-3 sm:gap-4">
+        <div className="flex flex-col items-center gap-1.5">
+          <MiniScore score={alt.score} />
+          {improvement > 0 && (
+            <span className="rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white whitespace-nowrap">
+              +{improvement} pts vs yours
+            </span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+            {alt.brand}
+          </p>
+          <h3 className="text-sm sm:text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            {alt.name}
+          </h3>
+          <div className="mt-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Why it's better</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+              {/* Reframe reason as 'No [flagged ingredient]' */}
+              {alt.reason.startsWith("Made with") || alt.reason.startsWith("Cooked in") || alt.reason.startsWith("Uses") || alt.reason.startsWith("Simple") || alt.reason.startsWith("Clean") || alt.reason.startsWith("Only") || alt.reason.startsWith("Egg whites") || alt.reason.startsWith("Two ingredients") || alt.reason.startsWith("Sprouted") || alt.reason.startsWith("USDA Organic") || alt.reason.startsWith("Organic") || alt.reason.startsWith("Sweetened") || alt.reason.startsWith("Paleo-friendly") || alt.reason.startsWith("Prebiotic") || alt.reason.startsWith("Brewed") || alt.reason.startsWith("Single ingredient") || alt.reason.startsWith("Ethically sourced") || alt.reason.startsWith("Small-batch") || alt.reason.startsWith("Plant-based") || alt.reason.startsWith("Naturally refined") || alt.reason.startsWith("Cold-pressed") || alt.reason.startsWith("100%") || alt.reason.startsWith("Low sugar") || alt.reason.startsWith("Minimal ingredients") || alt.reason.startsWith("No") ? alt.reason : `No ${fixesTag?.toLowerCase()}`}
+            </p>
+          </div>
+          {fixesTag && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-600/20 px-2.5 py-0.5 text-[10px] font-semibold text-green-600">
+              <CheckCircle2 size={10} /> Fixes: {fixesTag}
+            </span>
+          )}
+          <button
+            onClick={() => {}}
+            className="mt-2 flex items-center gap-0.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            type="button"
+          >
+            <MapPin size={10} /> Find near me →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ── Water Comparison ───────────────────────────────────────────────
 const WATER_COMPARE_KEYS = ["icelandic glacial", "waiakea", "fiji", "evian", "liquid death"] as const;
@@ -540,6 +597,40 @@ const Alternatives = () => {
   }
 
   const alternatives = getAlternatives(product);
+  const sorted = [...alternatives].sort((a, b) => b.score - a.score);
+  const topAlt = sorted[0];
+  const flaggedCategories = [...new Set(product.flagged.map((f) => f.category))];
+
+  // Empty state for no alternatives
+  if (sorted.length === 0) {
+    return (
+      <div className="min-h-screen bg-background pb-28">
+        <div className="flex items-center gap-3 px-5 pt-5">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
+          >
+            <ArrowLeft size={20} strokeWidth={1.8} />
+          </button>
+        </div>
+        <div className="flex flex-col items-center justify-center px-6 pt-24">
+          <PackageOpen size={56} className="text-muted-foreground/30" strokeWidth={1.2} />
+          <h2 className="mt-5 text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            No alternatives in our database yet
+          </h2>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            We're adding new products weekly. Check back soon.
+          </p>
+          <button
+            onClick={() => navigate("/scanner")}
+            className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors"
+          >
+            Scan something else
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -553,23 +644,35 @@ const Alternatives = () => {
       </div>
 
       <div className="mt-6 px-5 sm:px-6">
-        <h1
-          className="text-lg font-semibold leading-snug"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Cleaner alternatives to{" "}
-          <span className="text-primary">{product.name}</span>
-        </h1>
+        {/* 1. Comparison header */}
+        <ComparisonHeader product={product} topAlt={topAlt} />
 
-        <div className="mt-5 sm:mt-6 flex flex-col gap-3">
-          {alternatives.map((alt) => (
-            <AlternativeCard key={alt.name} alt={alt} />
+        {/* 5. Section label */}
+        <div className="mt-6">
+          <h1 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            Better options in this category
+          </h1>
+          <p className="mt-0.5 text-[11px] text-muted-foreground/60">
+            Sorted by Pure Score — highest first
+          </p>
+        </div>
+
+        {/* 2/3/4. Sorted cards with improvement badges */}
+        <div className="mt-4 flex flex-col gap-3">
+          {sorted.map((alt) => (
+            <AlternativeCard
+              key={alt.name}
+              alt={alt}
+              productScore={product.score}
+              flaggedCategories={flaggedCategories}
+            />
           ))}
         </div>
 
+        {/* 7. Footer */}
         <div className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Info size={13} strokeWidth={1.8} />
-          Data sourced from Open Food Facts
+          Pure scores are based on ingredient analysis. Always check labels before purchasing.
         </div>
       </div>
     </div>
