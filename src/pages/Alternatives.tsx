@@ -5,6 +5,7 @@ import type { ProductResult } from "@/lib/scoring";
 import { WATER_DATABASE } from "@/lib/water-database";
 import type { WaterBrand } from "@/lib/water-database";
 import { getAlternatives, inferCategory, type AlternativeProduct } from "@/lib/alternatives-database";
+import { trackAlternativeTap } from "@/lib/track";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   chips: "🫙", cereal: "🥣", crackers: "🍪", milk: "🥛", juice: "🧃",
@@ -62,10 +63,11 @@ const ProductImage = ({ imageUrl, category }: { imageUrl?: string; category: str
   );
 };
 
-const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: AlternativeProduct; flaggedCategories: string[]; category: string }) => {
+const AlternativeCard = ({ alt, flaggedCategories, category, scannedProductName, scannedProductScore }: { alt: AlternativeProduct; flaggedCategories: string[]; category: string; scannedProductName: string; scannedProductScore: number }) => {
   const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
 
   const handleFindNearMe = () => {
+    trackAlternativeTap(scannedProductName, scannedProductScore, alt, "find_near_me");
     const query = encodeURIComponent(`${alt.name} ${alt.brand} near me`);
     window.open(`https://www.google.com/maps/search/${query}`, "_blank");
   };
@@ -304,7 +306,7 @@ const Alternatives = () => {
 
         <div className="mt-4 flex flex-col gap-2">
           {alternatives.map((alt) => (
-            <AlternativeCard key={alt.name} alt={alt} flaggedCategories={flaggedCategories} category={category} />
+            <AlternativeCard key={alt.name} alt={alt} flaggedCategories={flaggedCategories} category={category} scannedProductName={product.name} scannedProductScore={product.score} />
           ))}
         </div>
 

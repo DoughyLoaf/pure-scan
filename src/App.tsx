@@ -3,8 +3,9 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { forwardRef, useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { getDirection } from "@/lib/nav-direction";
+import { initSession } from "@/lib/session";
 import BottomNav from "./components/BottomNav";
 import SplashScreen from "./components/SplashScreen";
 import Index from "./pages/Index";
@@ -56,6 +57,10 @@ const AnimatedRoutes = () => {
 const App = forwardRef<HTMLDivElement>((_props, ref) => {
   const [showSplash, setShowSplash] = useState(true);
   const hideSplash = useCallback(() => setShowSplash(false), []);
+
+  useEffect(() => {
+    initSession();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

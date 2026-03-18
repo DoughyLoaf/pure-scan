@@ -6,6 +6,7 @@ import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan, getScansRemaining } from "@/lib/scan-limits";
 import { isWaterProduct, findWaterBrand } from "@/lib/water-database";
+import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import type { ProductResult } from "@/lib/scoring";
 
 const CORNER_SIZE = 28;
@@ -122,16 +123,19 @@ const Scanner = () => {
 
       setScanLoading(true);
       try {
+        lastBarcode.current = code;
         const product = await fetchProduct(code);
         if (product) {
           navigateWithScan(product);
         } else {
+          trackUnknownBarcode(code);
           setScanLoading(false);
           setBarcode(code);
           setNotFound(true);
           setShowManual(true);
         }
       } catch {
+        trackUnknownBarcode(code);
         setScanLoading(false);
         setBarcode(code);
         setNotFound(true);
@@ -185,14 +189,21 @@ const Scanner = () => {
     }
   }, [blocked, handleDetectedBarcode, scannerStarted, showManual, stopScanner]);
 
+  const lastBarcode = useRef<string>("");
+
   const navigateWithScan = (product: ProductResult) => {
     if (!canScan()) { navigate("/paywall"); return; }
     const { remaining } = recordScan();
     addScanToHistory(product);
     setShowPulse(true);
     const categories = (product as any).categoriesRaw ?? "";
-    if (isWaterProduct(product.name, categories)) {
-      const waterBrand = findWaterBrand(product.name, product.brand);
+    const isWater = isWaterProduct(product.name, categories);
+    const waterBrand = isWater ? findWaterBrand(product.name, product.brand) : undefined;
+
+    // Fire-and-forget analytics
+    trackScan(product, lastBarcode.current || undefined, isWater, waterBrand?.name);
+
+    if (isWater) {
       setTimeout(() => {
         navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
       }, 350);
@@ -213,13 +224,16 @@ const Scanner = () => {
     setLoading(true);
     setNotFound(false);
     try {
+      lastBarcode.current = barcode.trim();
       const product = await fetchProduct(barcode.trim());
       if (product) {
         navigateWithScan(product);
       } else {
+        trackUnknownBarcode(barcode.trim());
         setNotFound(true);
       }
     } catch {
+      trackUnknownBarcode(barcode.trim());
       setNotFound(true);
     } finally {
       setLoading(false);
