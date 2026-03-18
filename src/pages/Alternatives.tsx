@@ -10,7 +10,33 @@ interface Alternative {
   brand: string;
   score: number;
   reason: string;
+  imageUrl?: string;
 }
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  chips: "🫙",
+  cereal: "🥣",
+  crackers: "🍪",
+  milk: "🥛",
+  juice: "🧃",
+  chocolate: "🍫",
+  popcorn: "🍿",
+  noodles: "🍝",
+  "peanut butter": "🥜",
+  "salad dressing": "🥗",
+  "cooking oil": "🫙",
+  candy: "🍬",
+  "ice cream": "🧊",
+  bread: "🍞",
+  sauce: "🥫",
+  bars: "💪",
+  "energy drinks": "⚡",
+  "frozen meals": "🧇",
+  yogurt: "🍦",
+  soda: "🥤",
+  cookies: "🍪",
+  snack: "🫙",
+};
 
 // ── Category inference from product name ───────────────────────────
 function inferCategory(name: string, brand?: string): string {
@@ -46,19 +72,19 @@ type AltDB = Record<string, Record<string, Alternative[]>>;
 const ALT_DB: AltDB = {
   chips: {
     "Seed Oil": [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil." },
+      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/400/0752/front_en.3.400.jpg" },
       { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola with no artificial flavors." },
+      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola with no artificial flavors.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/7943/front_en.3.400.jpg" },
     ],
     "Ultra-Processed": [
-      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt." },
+      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/5918/front_en.3.400.jpg" },
       { name: "Terra Vegetable Chips", brand: "Terra", score: 74, reason: "Real vegetables with minimal processing and no artificial flavors." },
       { name: "Good Health Avocado Oil Chips", brand: "Good Health", score: 76, reason: "Clean label with avocado oil and natural seasonings." },
     ],
     _default: [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil." },
+      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/400/0752/front_en.3.400.jpg" },
       { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt." },
+      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/5918/front_en.3.400.jpg" },
     ],
   },
   cereal: {
@@ -80,9 +106,9 @@ const ALT_DB: AltDB = {
   },
   crackers: {
     _default: [
-      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 84, reason: "Grain-free with clean ingredients and no seed oils." },
+      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 84, reason: "Grain-free with clean ingredients and no seed oils.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/300/0125/front_en.3.400.jpg" },
       { name: "Mary's Gone Crackers", brand: "Mary's Gone", score: 81, reason: "Organic whole grain, gluten-free, and no artificial additives." },
-      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and no seed oils." },
+      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and no seed oils.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/6934/front_en.3.400.jpg" },
     ],
   },
   yogurt: {
@@ -314,42 +340,73 @@ const MiniScore = ({ score }: { score: number }) => {
 
 // ComparisonHeader removed per redesign
 
-const AlternativeCard = ({ alt, flaggedCategories }: { alt: Alternative; flaggedCategories: string[] }) => {
+const ProductImage = ({ imageUrl, category }: { imageUrl?: string; category: string }) => {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">(imageUrl ? "loading" : "error");
+  const emoji = CATEGORY_EMOJI[category] || "🫙";
+
+  if (!imageUrl || status === "error") {
+    return (
+      <div className="flex h-[120px] w-full items-center justify-center rounded-t-2xl bg-muted">
+        <span className="text-[40px] select-none">{emoji}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-[120px] w-full overflow-hidden rounded-t-2xl bg-muted">
+      {status === "loading" && (
+        <div className="absolute inset-0 animate-pulse bg-muted" />
+      )}
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-full w-full object-contain p-3"
+        onLoad={() => setStatus("loaded")}
+        onError={() => setStatus("error")}
+      />
+    </div>
+  );
+};
+
+const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: Alternative; flaggedCategories: string[]; category: string }) => {
   const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex gap-3">
-        {/* Left column: score ring */}
-        <div className="flex items-start pt-1">
-          <MiniScore score={alt.score} />
-        </div>
-        {/* Right column */}
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-            {alt.brand}
-          </p>
-          <h3 className="text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-            {alt.name}
-          </h3>
-          <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-2">
-            {alt.reason}
-          </p>
-          <div className="mt-2 flex items-center justify-between">
-            <div>
-              {fixesTag && (
-                <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  No {fixesTag}
-                </span>
-              )}
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <ProductImage imageUrl={alt.imageUrl} category={category} />
+      <div className="border-t border-border p-4">
+        <div className="flex gap-3">
+          {/* Left column: score ring */}
+          <div className="flex items-start pt-1">
+            <MiniScore score={alt.score} />
+          </div>
+          {/* Right column */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              {alt.brand}
+            </p>
+            <h3 className="text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+              {alt.name}
+            </h3>
+            <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-2">
+              {alt.reason}
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <div>
+                {fixesTag && (
+                  <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    No {fixesTag}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {}}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                type="button"
+              >
+                Find near me →
+              </button>
             </div>
-            <button
-              onClick={() => {}}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              type="button"
-            >
-              Find near me →
-            </button>
           </div>
         </div>
       </div>
@@ -568,6 +625,7 @@ const Alternatives = () => {
     );
   }
 
+  const category = inferCategory(product.name, product.brand);
   const alternatives = getAlternatives(product);
   const sorted = [...alternatives].sort((a, b) => b.score - a.score);
   const topAlt = sorted[0];
@@ -632,6 +690,7 @@ const Alternatives = () => {
               key={alt.name}
               alt={alt}
               flaggedCategories={flaggedCategories}
+              category={category}
             />
           ))}
         </div>
