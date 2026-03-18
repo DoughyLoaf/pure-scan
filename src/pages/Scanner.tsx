@@ -232,12 +232,13 @@ const Scanner = () => {
   const notFoundBarcode = useRef<string>("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const html5QrRef = useRef<Html5Qrcode | null>(null);
+  const html5QrRef = useRef<any>(null);
   const scanningRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const autoStarted = useRef(false);
   const lastBarcode = useRef<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setBlocked(!canScan());
