@@ -14,7 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alternative_taps: {
+        Row: {
+          action: string | null
+          alternative_brand: string | null
+          alternative_name: string | null
+          alternative_score: number | null
+          created_at: string
+          id: string
+          scanned_product_name: string | null
+          scanned_product_score: number | null
+          session_id: string
+        }
+        Insert: {
+          action?: string | null
+          alternative_brand?: string | null
+          alternative_name?: string | null
+          alternative_score?: number | null
+          created_at?: string
+          id?: string
+          scanned_product_name?: string | null
+          scanned_product_score?: number | null
+          session_id: string
+        }
+        Update: {
+          action?: string | null
+          alternative_brand?: string | null
+          alternative_name?: string | null
+          alternative_score?: number | null
+          created_at?: string
+          id?: string
+          scanned_product_name?: string | null
+          scanned_product_score?: number | null
+          session_id?: string
+        }
+        Relationships: []
+      }
+      scans: {
+        Row: {
+          app_version: string | null
+          barcode: string | null
+          brand: string | null
+          categories_raw: string | null
+          created_at: string
+          flagged_categories: string[] | null
+          flagged_count: number | null
+          flagged_ingredients: string[] | null
+          id: string
+          ingredients_raw: string | null
+          is_water: boolean | null
+          platform: string | null
+          product_name: string | null
+          pure_score: number | null
+          session_id: string
+          water_brand: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          barcode?: string | null
+          brand?: string | null
+          categories_raw?: string | null
+          created_at?: string
+          flagged_categories?: string[] | null
+          flagged_count?: number | null
+          flagged_ingredients?: string[] | null
+          id?: string
+          ingredients_raw?: string | null
+          is_water?: boolean | null
+          platform?: string | null
+          product_name?: string | null
+          pure_score?: number | null
+          session_id: string
+          water_brand?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          barcode?: string | null
+          brand?: string | null
+          categories_raw?: string | null
+          created_at?: string
+          flagged_categories?: string[] | null
+          flagged_count?: number | null
+          flagged_ingredients?: string[] | null
+          id?: string
+          ingredients_raw?: string | null
+          is_water?: boolean | null
+          platform?: string | null
+          product_name?: string | null
+          pure_score?: number | null
+          session_id?: string
+          water_brand?: string | null
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          created_at: string
+          dietary_preferences: string[] | null
+          last_active_at: string
+          platform: string | null
+          scan_count: number
+          session_id: string
+          total_ingredients_flagged: number
+        }
+        Insert: {
+          created_at?: string
+          dietary_preferences?: string[] | null
+          last_active_at?: string
+          platform?: string | null
+          scan_count?: number
+          session_id: string
+          total_ingredients_flagged?: number
+        }
+        Update: {
+          created_at?: string
+          dietary_preferences?: string[] | null
+          last_active_at?: string
+          platform?: string | null
+          scan_count?: number
+          session_id?: string
+          total_ingredients_flagged?: number
+        }
+        Relationships: []
+      }
+      unknown_barcodes: {
+        Row: {
+          barcode: string
+          created_at: string
+          id: string
+          last_scanned_at: string
+          scan_count: number
+        }
+        Insert: {
+          barcode: string
+          created_at?: string
+          id?: string
+          last_scanned_at?: string
+          scan_count?: number
+        }
+        Update: {
+          barcode?: string
+          created_at?: string
+          id?: string
+          last_scanned_at?: string
+          scan_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
