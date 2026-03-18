@@ -4,6 +4,7 @@ import type { ProductResult } from "./scoring";
 
 /** Record a successful product scan — fire & forget */
 export function trackScan(product: ProductResult, barcode?: string, isWater = false, waterBrand?: string): void {
+  if (import.meta.env.DEV) console.log('[Pure] trackScan fired:', product.name);
   try {
     const flaggedCategories = [...new Set(product.flagged.map((f) => f.category))];
     const flaggedIngredients = product.flagged.map((f) => f.name);
