@@ -1062,7 +1062,7 @@ const Scanner = () => {
             </div>
           )}
 
-          {/* Label scan overlay — wrapped in error boundary */}
+          {/* Label scan: show capture button that triggers file input */}
           {scanMode === "label" && !labelScanError && (
             <ScannerErrorBoundary
               fallback={
@@ -1080,12 +1080,24 @@ const Scanner = () => {
               }
               onError={() => setLabelScanError(true)}
             >
-              <LabelScanContent
-                scannerStarted={scannerStarted}
-                photoProcessing={photoProcessing}
-                capturePhoto={capturePhoto}
-                showManualIngredientEntry={showManualIngredientEntry}
-              />
+              {!photoProcessing && !showManualIngredientEntry && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
+                  <div className="w-[85%] h-[50%] rounded-2xl border-2 border-primary/60 border-dashed flex flex-col items-center justify-center gap-3">
+                    <Camera size={32} className="text-primary/70" />
+                    <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
+                      Tap to photograph ingredient label
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={photoProcessing}
+                    className="mt-6 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm text-white transition-all active:scale-95 active:bg-white/40"
+                    aria-label="Capture photo"
+                  >
+                    <Camera size={24} />
+                  </button>
+                </div>
+              )}
             </ScannerErrorBoundary>
           )}
 
