@@ -18,6 +18,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 import WaterReport from "./pages/WaterReport";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
