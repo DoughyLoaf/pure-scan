@@ -10,7 +10,9 @@ import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/session";
 import { toast } from "sonner";
+import { processPhotoScan, submitUserCorrection } from "@/lib/photo-scan";
 import type { ProductResult } from "@/lib/scoring";
+import type { PhotoScanResult } from "@/lib/photo-scan";
 
 const CORNER_SIZE = 28;
 const CORNER_WEIGHT = 3;
@@ -138,8 +140,12 @@ const Scanner = () => {
   const [scanLoading, setScanLoading] = useState(false);
   const [scannerStarted, setScannerStarted] = useState(false);
   const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [photoProgress, setPhotoProgress] = useState("");
   const [showManualIngredientEntry, setShowManualIngredientEntry] = useState(false);
   const [manualIngredientsLabel, setManualIngredientsLabel] = useState("");
+  // LAYER 3: Confirmation state for medium-confidence scans
+  const [pendingConfirmation, setPendingConfirmation] = useState<PhotoScanResult | null>(null);
+  const [confirmText, setConfirmText] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -312,7 +318,7 @@ const Scanner = () => {
 
   const lastBarcode = useRef<string>("");
 
-  /* ─── Photo Capture (Label Scan mode) ─── */
+  /* ─── Photo Capture (Label Scan mode) — uses 5-layer pipeline ─── */
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !streamRef.current || photoProcessing) return;
     if (!canScan()) { navigate("/paywall"); return; }
@@ -327,83 +333,73 @@ const Scanner = () => {
     const base64 = canvas.toDataURL("image/jpeg", 0.85);
 
     setPhotoProcessing(true);
+    setPhotoProgress("Compressing image…");
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("extract-ingredients", {
-        body: { images: [base64] },
-      });
+      const result = await processPhotoScan(base64, (step) => setPhotoProgress(step));
 
-      if (fnError || !data) throw new Error(fnError?.message || "Failed to process image");
-
-      if (data.error === "no_label_visible") {
-        toast.error("Point camera directly at the ingredient list");
+      // LAYER 3: Confidence-based routing
+      if (result.confidence === "low") {
+        // Store low-confidence for review but don't show to user
+        toast.error("Couldn't read this label clearly. Try better lighting or get closer.");
         setPhotoProcessing(false);
+        setPhotoProgress("");
         return;
       }
 
-      if (data.confidence === "low") {
-        toast.error("Image unclear — try better lighting");
+      if (result.needsConfirmation) {
+        // Medium confidence — show confirmation UI
+        setPendingConfirmation(result);
+        setConfirmText(result.extractedText);
         setPhotoProcessing(false);
+        setPhotoProgress("");
         return;
       }
 
-      const ingredientsRaw = data.ingredients_raw || data.ingredient_text_raw || "";
-      const isWaterDetected = data.is_water === true;
-      const detectedBarcode = data.barcode || null;
-      const category = data.category || "";
-
-      // For water products without ingredients, still allow navigation
-      if (!ingredientsRaw.trim() && !isWaterDetected) {
-        toast.error("Couldn't read ingredients. Try a clearer photo.");
-        setPhotoProcessing(false);
-        return;
-      }
-
-      const { score, flagged } = ingredientsRaw.trim()
-        ? analyzeIngredients(ingredientsRaw)
-        : { score: 100, flagged: [] };
-
-      const product: ProductResult = {
-        name: data.product_name || "Photo Scanned Product",
-        brand: data.brand || data.brand_name || "Unknown Brand",
-        score,
-        ingredientsRaw,
-        flagged,
-        categoriesRaw: category,
-      };
-
-      // Enrich database: store in product_submissions
-      try {
-        supabase.from("product_submissions").insert({
-          session_id: getSessionId(),
-          barcode: detectedBarcode || "PHOTO_SCAN_" + Date.now(),
-          product_name: product.name,
-          brand: product.brand,
-          ingredients_raw: ingredientsRaw,
-          status: "auto_extracted",
-          notes: JSON.stringify({
-            confidence: data.confidence,
-            source: "photo_scan",
-            label_type: data.label_type,
-            label_coverage: data.label_coverage,
-            is_water: isWaterDetected,
-            nutrition: data.nutrition,
-            water_data: data.water_data,
-          }),
-        } as any).then(() => {});
-      } catch { /* fire & forget */ }
-
-      lastBarcode.current = detectedBarcode || "";
-      navigateWithScan(product, 'photo', isWaterDetected);
+      // High confidence or cache hit — proceed directly
+      lastBarcode.current = result.rawResponse?.barcode || "";
+      const isWater = result.rawResponse?.is_water === true;
+      navigateWithScan(result.product, 'photo', isWater);
     } catch (err: any) {
       console.error("Photo scan error:", err);
-      const msg = err?.message?.includes("AbortError") || err?.message?.includes("timeout")
-        ? "Scan taking too long — try again"
-        : "Could not read label — try better lighting or type manually";
-      toast.error(msg);
+      if (err.message === "no_label_visible") {
+        toast.error("Point camera directly at the ingredient list");
+      } else if (err.message === "no_ingredients") {
+        toast.error("Couldn't read ingredients. Try a clearer photo.");
+      } else {
+        const msg = err?.message?.includes("timeout")
+          ? "Scan taking too long — try again"
+          : "Could not read label — try better lighting or type manually";
+        toast.error(msg);
+      }
       setPhotoProcessing(false);
+      setPhotoProgress("");
     }
   }, [navigate, photoProcessing]);
+
+  /* ─── LAYER 3+4: Confirm or correct medium-confidence scan ─── */
+  const handleConfirmIngredients = () => {
+    if (!pendingConfirmation) return;
+    const wasEdited = confirmText !== pendingConfirmation.extractedText;
+    let product: ProductResult;
+
+    if (wasEdited) {
+      // LAYER 4: User correction — higher value than AI extraction
+      product = submitUserCorrection(pendingConfirmation.product, confirmText, pendingConfirmation.rawResponse);
+    } else {
+      product = pendingConfirmation.product;
+    }
+
+    lastBarcode.current = pendingConfirmation.rawResponse?.barcode || "";
+    const isWater = pendingConfirmation.rawResponse?.is_water === true;
+    setPendingConfirmation(null);
+    navigateWithScan(product, 'photo', isWater);
+  };
+
+  const handleRetakePhoto = () => {
+    setPendingConfirmation(null);
+    setConfirmText("");
+  };
 
   /* ─── Manual ingredient entry for label mode ─── */
   const handleManualLabelIngredients = () => {
@@ -478,7 +474,7 @@ const Scanner = () => {
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <Loader2 size={32} className="animate-spin text-primary" />
           <p className="mt-3 text-sm font-medium text-white/80">
-            {photoProcessing ? "Reading ingredients…" : "Identifying product…"}
+            {photoProcessing ? (photoProgress || "Reading ingredients…") : "Identifying product…"}
           </p>
         </div>
       )}
@@ -673,8 +669,37 @@ const Scanner = () => {
         </div>
       )}
 
+      {/* LAYER 3: Medium-confidence confirmation panel */}
+      {pendingConfirmation && (
+        <div className="animate-fade-in absolute inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Confirm ingredients</h3>
+            <button onClick={handleRetakePhoto} className="text-muted-foreground active:text-foreground">
+              <X size={20} strokeWidth={1.8} />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">We read this label — does this look right?</p>
+          <textarea
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            rows={5}
+            className="w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <div className="mt-3 flex gap-2">
+            <button onClick={handleConfirmIngredients}
+              className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors flex items-center justify-center gap-2">
+              <Check size={16} /> Looks good
+            </button>
+            <button onClick={handleRetakePhoto}
+              className="flex-1 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-medium text-foreground transition-colors">
+              Retake photo
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Blocked upgrade button */}
-      {!showManual && !showManualIngredientEntry && blocked && (
+      {!showManual && !showManualIngredientEntry && !pendingConfirmation && blocked && (
         <div className="px-6 pb-6 mb-[env(safe-area-inset-bottom)]">
           <button onClick={() => navigate("/paywall")}
             className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors">

@@ -77,6 +77,45 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_queue: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          confidence: string | null
+          created_at: string
+          id: string
+          image_size_bytes: number | null
+          ingredient_text_raw: string | null
+          processing_status: string
+          product_name: string | null
+          session_id: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          confidence?: string | null
+          created_at?: string
+          id?: string
+          image_size_bytes?: number | null
+          ingredient_text_raw?: string | null
+          processing_status?: string
+          product_name?: string | null
+          session_id: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          confidence?: string | null
+          created_at?: string
+          id?: string
+          image_size_bytes?: number | null
+          ingredient_text_raw?: string | null
+          processing_status?: string
+          product_name?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
       ingredient_stats: {
         Row: {
           category: string | null
