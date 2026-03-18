@@ -690,6 +690,7 @@ const Alternatives = () => {
               key={alt.name}
               alt={alt}
               flaggedCategories={flaggedCategories}
+              category={category}
             />
           ))}
         </div>
