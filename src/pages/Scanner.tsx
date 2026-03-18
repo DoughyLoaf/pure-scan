@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flashlight, FlashlightOff, Loader2, X, ChevronDown, ChevronUp, Check, Camera, Package, ListChecks } from "lucide-react";
-import { Html5Qrcode } from "html5-qrcode";
+// html5-qrcode loaded via CDN in index.html — access via window.Html5Qrcode
+declare const Html5Qrcode: any;
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan } from "@/lib/scan-limits";
@@ -231,12 +232,13 @@ const Scanner = () => {
   const notFoundBarcode = useRef<string>("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const html5QrRef = useRef<Html5Qrcode | null>(null);
+  const html5QrRef = useRef<any>(null);
   const scanningRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const autoStarted = useRef(false);
   const lastBarcode = useRef<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setBlocked(!canScan());
@@ -247,10 +249,7 @@ const Scanner = () => {
     scanningRef.current = false;
     if (html5QrRef.current) {
       try {
-        const state = html5QrRef.current.getState();
-        if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
-          await html5QrRef.current.stop();
-        }
+        await html5QrRef.current.stop();
       } catch {}
       try { html5QrRef.current.clear(); } catch {}
       html5QrRef.current = null;
@@ -418,25 +417,22 @@ const Scanner = () => {
     await stopBarcodeScanner();
 
     // Ensure the container element exists
-    const container = document.getElementById("qr-reader");
+    const container = document.getElementById("qr-reader-element");
     if (!container) return;
 
     try {
-      const html5QrCode = new Html5Qrcode("qr-reader");
+      const html5QrCode = new (window as any).Html5Qrcode("qr-reader-element");
       html5QrRef.current = html5QrCode;
       scanningRef.current = true;
 
       await html5QrCode.start(
         { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 150 },
-          aspectRatio: 1.777778,
-        },
-        (decodedText) => {
+        { fps: 10, qrbox: { width: 250, height: 150 } },
+        (decodedText: string) => {
           if (!scanningRef.current) return;
           if (decodedText && decodedText.length >= 4) {
             scanningRef.current = false;
+            html5QrCode.stop().catch(() => {});
             void handleDetectedBarcode(decodedText);
           }
         },
@@ -449,17 +445,15 @@ const Scanner = () => {
     } catch (err: any) {
       console.error("html5-qrcode start error:", err);
       scanningRef.current = false;
-      // Fall back to raw camera stream so the user at least sees something
-      if (!streamRef.current) {
-        await startCameraStream();
-      }
       if (err?.message?.includes("NotAllowedError") || err?.name === "NotAllowedError") {
         setCameraError("Camera access denied. Please allow camera access in your browser settings, then reload.");
       } else if (err?.message?.includes("NotFoundError")) {
         setCameraError("No camera found. Use manual entry below.");
+      } else {
+        setCameraError("Could not start camera. Try again or use manual entry.");
       }
     }
-  }, [blocked, handleDetectedBarcode, stopBarcodeScanner, startCameraStream]);
+  }, [blocked, handleDetectedBarcode, stopBarcodeScanner]);
 
   /* ─── Combined start ─── */
   const startScanner = useCallback(async () => {
@@ -504,7 +498,7 @@ const Scanner = () => {
     }
 
     // Try from html5-qrcode's internal video (barcode mode)
-    const qrVideo = document.querySelector("#qr-reader video") as HTMLVideoElement | null;
+    const qrVideo = document.querySelector("#qr-reader-element video") as HTMLVideoElement | null;
     if (qrVideo && qrVideo.videoWidth > 0) {
       const canvas = canvasRef.current || document.createElement("canvas");
       canvas.width = qrVideo.videoWidth;
@@ -864,27 +858,84 @@ const Scanner = () => {
     setLabelScanError(false);
   };
 
+  /* ─── Handle file input for label scan ─── */
+  const handleLabelFileCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!canScan()) { navigate("/paywall"); return; }
+
+    setPhotoProcessing(true);
+    setPhotoProgress("Reading label…");
+
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await processPhotoScan(base64, (step) => setPhotoProgress(step));
+
+      if (result.confidence === "low") {
+        toast.error("Couldn't read this label clearly. Try better lighting or get closer.");
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      if (result.needsConfirmation) {
+        setPendingConfirmation(result);
+        setConfirmText(result.extractedText);
+        setPhotoProcessing(false);
+        setPhotoProgress("");
+        return;
+      }
+
+      lastBarcode.current = result.rawResponse?.barcode || "";
+      const isWater = result.rawResponse?.is_water === true;
+      navigateWithScan(result.product, 'photo', isWater);
+    } catch (err: any) {
+      console.error("Label scan error:", err);
+      toast.error("Could not read label — try better lighting or type manually");
+      setPhotoProcessing(false);
+      setPhotoProgress("");
+    }
+
+    // Reset file input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [navigate]);
+
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
 
+      {/* Hidden file input for label scan photo capture */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleLabelFileCapture}
+        className="hidden"
+      />
+
       {/* html5-qrcode renders its own video inside this div in barcode mode */}
       <div
-        id="qr-reader"
+        id="qr-reader-element"
         className="absolute inset-0 z-10"
         style={{
-          // Hide html5-qrcode's default UI chrome but keep the video visible
           display: scanMode === "barcode" && !showManual ? "block" : "none",
         }}
       />
 
-      {/* Raw video element for label scan / photo capture modes */}
+      {/* Raw video element for two-step photo capture modes */}
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover z-10"
-        style={{ display: scanMode === "label" || isTwoStepActive ? "block" : "none" }}
+        style={{ display: isTwoStepActive ? "block" : "none" }}
         playsInline
         muted
         autoPlay
@@ -1011,7 +1062,7 @@ const Scanner = () => {
             </div>
           )}
 
-          {/* Label scan overlay — wrapped in error boundary */}
+          {/* Label scan: show capture button that triggers file input */}
           {scanMode === "label" && !labelScanError && (
             <ScannerErrorBoundary
               fallback={
@@ -1029,12 +1080,24 @@ const Scanner = () => {
               }
               onError={() => setLabelScanError(true)}
             >
-              <LabelScanContent
-                scannerStarted={scannerStarted}
-                photoProcessing={photoProcessing}
-                capturePhoto={capturePhoto}
-                showManualIngredientEntry={showManualIngredientEntry}
-              />
+              {!photoProcessing && !showManualIngredientEntry && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
+                  <div className="w-[85%] h-[50%] rounded-2xl border-2 border-primary/60 border-dashed flex flex-col items-center justify-center gap-3">
+                    <Camera size={32} className="text-primary/70" />
+                    <span className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-medium text-white/90">
+                      Tap to photograph ingredient label
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={photoProcessing}
+                    className="mt-6 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm text-white transition-all active:scale-95 active:bg-white/40"
+                    aria-label="Capture photo"
+                  >
+                    <Camera size={24} />
+                  </button>
+                </div>
+              )}
             </ScannerErrorBoundary>
           )}
 
