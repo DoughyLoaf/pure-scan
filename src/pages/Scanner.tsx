@@ -727,7 +727,7 @@ const Scanner = () => {
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-16 z-40 overflow-hidden">
+    <div className="fixed inset-0 z-40 overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Full-screen camera feed */}
