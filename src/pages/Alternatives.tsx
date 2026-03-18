@@ -4,299 +4,16 @@ import { ArrowLeft, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, Chevr
 import type { ProductResult } from "@/lib/scoring";
 import { WATER_DATABASE } from "@/lib/water-database";
 import type { WaterBrand } from "@/lib/water-database";
-
-interface Alternative {
-  name: string;
-  brand: string;
-  score: number;
-  reason: string;
-  imageUrl?: string;
-}
+import { getAlternatives, inferCategory, type AlternativeProduct } from "@/lib/alternatives-database";
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  chips: "🫙",
-  cereal: "🥣",
-  crackers: "🍪",
-  milk: "🥛",
-  juice: "🧃",
-  chocolate: "🍫",
-  popcorn: "🍿",
-  noodles: "🍝",
-  "peanut butter": "🥜",
-  "salad dressing": "🥗",
-  "cooking oil": "🫙",
-  candy: "🍬",
-  "ice cream": "🧊",
-  bread: "🍞",
-  sauce: "🥫",
-  bars: "💪",
-  "energy drinks": "⚡",
-  "frozen meals": "🧇",
-  yogurt: "🍦",
-  soda: "🥤",
-  cookies: "🍪",
-  snack: "🫙",
+  chips: "🫙", cereal: "🥣", crackers: "🍪", milk: "🥛", juice: "🧃",
+  chocolate: "🍫", popcorn: "🍿", noodles: "🍝", "peanut butter": "🥜",
+  "salad dressing": "🥗", "cooking oil": "🫙", candy: "🍬", "ice cream": "🧊",
+  bread: "🍞", sauce: "🥫", bars: "💪", "energy drinks": "⚡",
+  "frozen meals": "🧇", yogurt: "🍦", soda: "🥤", cookies: "🍪",
+  pasta: "🍝", snack: "🫙",
 };
-
-// ── Category inference from product name ───────────────────────────
-function inferCategory(name: string, brand?: string): string {
-  const n = (name + " " + (brand || "")).toLowerCase();
-  if (/energy|monster|red\s*bull|celsius|bang|reign|rockstar|g\s*fuel|zoa/i.test(n)) return "energy drinks";
-  if (/frozen\s*(meal|dinner|entrée|entree|pizza|burrito)|lean\s*cuisine|stouffer|amy.*kitchen|hot\s*pocket/i.test(n)) return "frozen meals";
-  if (/peanut\s*butter|almond\s*butter|nut\s*butter|sun\s*butter|cashew\s*butter/i.test(n)) return "peanut butter";
-  if (/dressing|vinaigrette|ranch|caesar/i.test(n)) return "salad dressing";
-  if (/cooking\s*oil|olive\s*oil|avocado\s*oil|coconut\s*oil|canola|vegetable\s*oil/i.test(n)) return "cooking oil";
-  if (/chip|crisp|frito|dorito|cheeto/i.test(n)) return "chips";
-  if (/cereal|granola|flake|crunch|cheerio|loop|oatmeal/i.test(n)) return "cereal";
-  if (/cracker|pretzel|goldfish/i.test(n)) return "crackers";
-  if (/yogurt|yoghurt|kefir/i.test(n)) return "yogurt";
-  if (/soda|cola|pop|sprite|fanta|dew/i.test(n)) return "soda";
-  if (/juice/i.test(n)) return "juice";
-  if (/cookie|oreo|biscuit/i.test(n)) return "cookies";
-  if (/candy|gumm|skittle|starburst|sour/i.test(n)) return "candy";
-  if (/ice\s*cream|gelato/i.test(n)) return "ice cream";
-  if (/bread|bun|bagel|muffin|toast|tortilla|wrap/i.test(n)) return "bread";
-  if (/sauce|ketchup|mustard|mayo|bbq/i.test(n)) return "sauce";
-  if (/bar|cliff|kind|rxbar|protein\s*bar|granola\s*bar|snack\s*bar/i.test(n)) return "bars";
-  if (/noodle|ramen|pasta|mac.*cheese/i.test(n)) return "noodles";
-  if (/milk|oat.*milk|almond.*milk/i.test(n)) return "milk";
-  if (/chocolate|cocoa|hazelnut|nutella|spread/i.test(n)) return "chocolate";
-  if (/popcorn/i.test(n)) return "popcorn";
-  if (/frozen/i.test(n)) return "frozen meals";
-  return "snack";
-}
-
-// ── Alternatives database by category × flagged concern ────────────
-type AltDB = Record<string, Record<string, Alternative[]>>;
-
-const ALT_DB: AltDB = {
-  chips: {
-    "Seed Oil": [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/400/0752/front_en.3.400.jpg" },
-      { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Kettle Brand Avocado Oil Chips", brand: "Kettle Brand", score: 71, reason: "Uses avocado oil instead of canola with no artificial flavors.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/7943/front_en.3.400.jpg" },
-    ],
-    "Ultra-Processed": [
-      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/5918/front_en.3.400.jpg" },
-      { name: "Terra Vegetable Chips", brand: "Terra", score: 74, reason: "Real vegetables with minimal processing and no artificial flavors." },
-      { name: "Good Health Avocado Oil Chips", brand: "Good Health", score: 76, reason: "Clean label with avocado oil and natural seasonings." },
-    ],
-    _default: [
-      { name: "Siete Potato Chips", brand: "Siete", score: 82, reason: "Made with avocado oil instead of canola or sunflower oil.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/400/0752/front_en.3.400.jpg" },
-      { name: "Jackson's Sweet Potato Chips", brand: "Jackson's", score: 79, reason: "Cooked in coconut oil with only three clean ingredients." },
-      { name: "Boulder Canyon Chips", brand: "Boulder Canyon", score: 78, reason: "Simple ingredient list with avocado oil and sea salt.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/5918/front_en.3.400.jpg" },
-    ],
-  },
-  cereal: {
-    "Artificial Dye": [
-      { name: "Nature's Path Organic Sunrise", brand: "Nature's Path", score: 85, reason: "USDA Organic with no synthetic dyes, colors, or sweeteners." },
-      { name: "Cascadian Farm Organic Granola", brand: "Cascadian Farm", score: 82, reason: "Whole grain oats with no synthetic colors or flavors." },
-      { name: "Barbara's Puffins", brand: "Barbara's", score: 79, reason: "No artificial dyes, preservatives, or high-fructose corn syrup." },
-    ],
-    "Artificial Sweetener": [
-      { name: "Ezekiel 4:9 Sprouted Cereal", brand: "Food For Life", score: 89, reason: "Sprouted grains with no added sugar or artificial sweeteners." },
-      { name: "Nature's Path Heritage Flakes", brand: "Nature's Path", score: 84, reason: "Naturally sweetened with organic cane sugar, no artificial sweeteners." },
-      { name: "One Degree Sprouted Oat O's", brand: "One Degree", score: 82, reason: "Sprouted oats with minimal sweetening and full ingredient traceability." },
-    ],
-    _default: [
-      { name: "Nature's Path Organic Sunrise", brand: "Nature's Path", score: 85, reason: "USDA Organic with no synthetic dyes, colors, or sweeteners." },
-      { name: "Ezekiel 4:9 Sprouted Cereal", brand: "Food For Life", score: 89, reason: "Sprouted grains with no added sugar or preservatives." },
-      { name: "Cascadian Farm Organic Granola", brand: "Cascadian Farm", score: 82, reason: "Whole grain oats with no synthetic colors or flavors." },
-    ],
-  },
-  crackers: {
-    _default: [
-      { name: "Simple Mills Almond Flour Crackers", brand: "Simple Mills", score: 84, reason: "Grain-free with clean ingredients and no seed oils.", imageUrl: "https://images.openfoodfacts.org/images/products/085/239/300/0125/front_en.3.400.jpg" },
-      { name: "Mary's Gone Crackers", brand: "Mary's Gone", score: 81, reason: "Organic whole grain, gluten-free, and no artificial additives." },
-      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and no seed oils.", imageUrl: "https://images.openfoodfacts.org/images/products/008/154/300/6934/front_en.3.400.jpg" },
-    ],
-  },
-  yogurt: {
-    _default: [
-      { name: "Siggi's Icelandic Yogurt", brand: "Siggi's", score: 88, reason: "Simple ingredients with high protein, low sugar, and no additives." },
-      { name: "Stonyfield Organic Whole Milk Yogurt", brand: "Stonyfield", score: 85, reason: "USDA Organic with no artificial flavors, colors, or sweeteners." },
-      { name: "Fage Total Plain Greek Yogurt", brand: "Fage", score: 87, reason: "Only milk and live cultures — zero additives or preservatives." },
-    ],
-  },
-  soda: {
-    _default: [
-      { name: "Olipop Vintage Cola", brand: "Olipop", score: 78, reason: "Prebiotic soda with natural sweeteners and no artificial dyes." },
-      { name: "Poppi Prebiotic Soda", brand: "Poppi", score: 75, reason: "Apple cider vinegar based with natural fruit flavors." },
-      { name: "Zevia Zero Calorie Soda", brand: "Zevia", score: 72, reason: "Sweetened with stevia instead of artificial sweeteners." },
-    ],
-  },
-  "energy drinks": {
-    "Artificial Sweetener": [
-      { name: "Celsius Live Fit", brand: "Celsius", score: 72, reason: "Sweetened with sucralose-free formula using stevia and erythritol." },
-      { name: "Guayakí Yerba Mate", brand: "Guayakí", score: 82, reason: "Organic yerba mate with natural caffeine and no artificial sweeteners." },
-      { name: "Hiball Organic Energy Water", brand: "Hiball", score: 79, reason: "USDA Organic with zero sugar and no artificial sweeteners or dyes." },
-    ],
-    "Artificial Dye": [
-      { name: "RUNA Clean Energy", brand: "RUNA", score: 80, reason: "Brewed from guayusa leaves with no artificial dyes or flavors." },
-      { name: "Matchabar Hustle Matcha Energy", brand: "Matchabar", score: 77, reason: "Matcha-based energy with natural color and no synthetic dyes." },
-      { name: "Guayakí Yerba Mate", brand: "Guayakí", score: 82, reason: "Organic yerba mate with naturally derived color and caffeine." },
-    ],
-    _default: [
-      { name: "Guayakí Yerba Mate", brand: "Guayakí", score: 82, reason: "Organic yerba mate with natural caffeine and no artificial additives." },
-      { name: "Hiball Organic Energy Water", brand: "Hiball", score: 79, reason: "USDA Organic sparkling energy with zero sugar and no dyes." },
-      { name: "RUNA Clean Energy", brand: "RUNA", score: 80, reason: "Brewed from guayusa leaves with no artificial colors or sweeteners." },
-    ],
-  },
-  "frozen meals": {
-    "Seed Oil": [
-      { name: "Amy's Organic Mexican Casserole", brand: "Amy's Kitchen", score: 76, reason: "Made with organic ingredients and no seed oils or preservatives." },
-      { name: "Saffron Road Chicken Tikka Masala", brand: "Saffron Road", score: 73, reason: "Antibiotic-free chicken cooked without canola or soybean oil." },
-      { name: "Primal Kitchen Frozen Bowl", brand: "Primal Kitchen", score: 78, reason: "Paleo-friendly with avocado oil and no seed oils." },
-    ],
-    "Preservative": [
-      { name: "Daily Harvest Flatbread", brand: "Daily Harvest", score: 81, reason: "Plant-based with no preservatives, just whole frozen vegetables." },
-      { name: "Tattooed Chef Plant-Based Bowl", brand: "Tattooed Chef", score: 74, reason: "Simple plant ingredients with no synthetic preservatives." },
-      { name: "Amy's Organic Light & Lean", brand: "Amy's Kitchen", score: 76, reason: "USDA Organic frozen entrée with no artificial preservatives." },
-    ],
-    _default: [
-      { name: "Amy's Organic Mexican Casserole", brand: "Amy's Kitchen", score: 76, reason: "Made with organic ingredients and no seed oils or preservatives." },
-      { name: "Primal Kitchen Frozen Bowl", brand: "Primal Kitchen", score: 78, reason: "Paleo-friendly with avocado oil and clean protein sources." },
-      { name: "Daily Harvest Flatbread", brand: "Daily Harvest", score: 81, reason: "Plant-based with no preservatives, just whole frozen vegetables." },
-    ],
-  },
-  bars: {
-    "Seed Oil": [
-      { name: "RXBAR Chocolate Sea Salt", brand: "RXBAR", score: 86, reason: "Egg whites, dates, nuts, and cocoa — no seed oils or fillers." },
-      { name: "Larabar Apple Pie", brand: "Larabar", score: 88, reason: "Only dates, almonds, and apples with no oils added." },
-      { name: "That's It Apple + Mango Bar", brand: "That's It", score: 89, reason: "Two ingredients: real fruit pressed into a bar, nothing else." },
-    ],
-    "Artificial Sweetener": [
-      { name: "KIND Dark Chocolate Nuts & Sea Salt", brand: "KIND", score: 76, reason: "Whole nuts with dark chocolate and no artificial sweeteners." },
-      { name: "GoMacro MacroBar", brand: "GoMacro", score: 80, reason: "Organic plant-based bar sweetened with brown rice syrup, not sucralose." },
-      { name: "RXBAR Peanut Butter", brand: "RXBAR", score: 85, reason: "Sweetened only by dates with no artificial sweeteners." },
-    ],
-    _default: [
-      { name: "RXBAR Chocolate Sea Salt", brand: "RXBAR", score: 86, reason: "Egg whites, dates, nuts, and cocoa — no additives at all." },
-      { name: "Larabar Apple Pie", brand: "Larabar", score: 88, reason: "Only dates, almonds, and apples with nothing artificial." },
-      { name: "KIND Dark Chocolate Nuts & Sea Salt", brand: "KIND", score: 76, reason: "Whole nuts with dark chocolate and no artificial sweeteners." },
-    ],
-  },
-  "peanut butter": {
-    "Seed Oil": [
-      { name: "Once Again Organic Peanut Butter", brand: "Once Again", score: 89, reason: "Just dry-roasted organic peanuts and salt — no palm or seed oils." },
-      { name: "Teddie All Natural Peanut Butter", brand: "Teddie", score: 86, reason: "Only peanuts and salt, no hydrogenated oils or added sugar." },
-      { name: "Santa Cruz Organic Peanut Butter", brand: "Santa Cruz", score: 84, reason: "USDA Organic with only roasted peanuts — zero seed oils." },
-    ],
-    _default: [
-      { name: "Once Again Organic Peanut Butter", brand: "Once Again", score: 89, reason: "Just dry-roasted organic peanuts and salt — no palm or seed oils." },
-      { name: "Teddie All Natural Peanut Butter", brand: "Teddie", score: 86, reason: "Only peanuts and salt, no hydrogenated oils or added sugar." },
-      { name: "Santa Cruz Organic Peanut Butter", brand: "Santa Cruz", score: 84, reason: "USDA Organic with only roasted peanuts — zero added oils." },
-    ],
-  },
-  "salad dressing": {
-    "Seed Oil": [
-      { name: "Primal Kitchen Caesar Dressing", brand: "Primal Kitchen", score: 84, reason: "Made with avocado oil instead of canola or soybean oil." },
-      { name: "Tessemae's Organic Ranch", brand: "Tessemae's", score: 81, reason: "Cold-pressed organic sunflower oil base with no canola oil." },
-      { name: "Sir Kensington's Vinaigrette", brand: "Sir Kensington's", score: 78, reason: "Sunflower oil and real ingredients with no artificial preservatives." },
-    ],
-    _default: [
-      { name: "Primal Kitchen Caesar Dressing", brand: "Primal Kitchen", score: 84, reason: "Made with avocado oil instead of canola or soybean oil." },
-      { name: "Tessemae's Organic Ranch", brand: "Tessemae's", score: 81, reason: "Cold-pressed organic oil base with no seed oils or sugar." },
-      { name: "Sir Kensington's Vinaigrette", brand: "Sir Kensington's", score: 78, reason: "Real ingredients with no artificial preservatives or colors." },
-    ],
-  },
-  "cooking oil": {
-    _default: [
-      { name: "Chosen Foods Avocado Oil", brand: "Chosen Foods", score: 89, reason: "Naturally refined avocado oil with a high smoke point and no additives." },
-      { name: "Nutiva Organic Coconut Oil", brand: "Nutiva", score: 86, reason: "USDA Organic virgin coconut oil with no refining or bleaching." },
-      { name: "California Olive Ranch Extra Virgin", brand: "California Olive Ranch", score: 88, reason: "100% California-grown olives, cold-pressed with no seed oil blending." },
-    ],
-  },
-  cookies: {
-    _default: [
-      { name: "Simple Mills Crunchy Cookies", brand: "Simple Mills", score: 79, reason: "Almond flour base with coconut oil instead of seed oils." },
-      { name: "Hu Kitchen Chocolate Chip Cookies", brand: "Hu Kitchen", score: 77, reason: "No refined sugar, seed oils, or artificial flavors." },
-      { name: "Partake Crunchy Cookies", brand: "Partake", score: 75, reason: "Allergy-friendly with clean ingredients and no artificial additives." },
-    ],
-  },
-  candy: {
-    _default: [
-      { name: "Unreal Dark Chocolate Gems", brand: "Unreal", score: 76, reason: "No artificial dyes, corn syrup, or synthetic flavors." },
-      { name: "YumEarth Organic Fruit Snacks", brand: "YumEarth", score: 73, reason: "USDA Organic with real fruit juice and no artificial dyes." },
-      { name: "SmartSweets Gummy Bears", brand: "SmartSweets", score: 69, reason: "Low sugar with plant-based sweeteners and no artificial colors." },
-    ],
-  },
-  sauce: {
-    _default: [
-      { name: "Primal Kitchen Ketchup", brand: "Primal Kitchen", score: 84, reason: "Sweetened with dates with no high-fructose corn syrup or seed oils." },
-      { name: "Sir Kensington's Classic Ketchup", brand: "Sir Kensington's", score: 81, reason: "Non-GMO tomatoes with no artificial preservatives." },
-      { name: "Tessemae's Organic Dressing", brand: "Tessemae's", score: 79, reason: "Cold-pressed olive oil base with no seed oils or added sugar." },
-    ],
-  },
-  bread: {
-    _default: [
-      { name: "Ezekiel 4:9 Sprouted Bread", brand: "Food For Life", score: 89, reason: "Sprouted whole grains with no preservatives or added sugar." },
-      { name: "Dave's Killer Bread Thin-Sliced", brand: "Dave's Killer Bread", score: 79, reason: "USDA Organic whole grains with no artificial preservatives." },
-      { name: "Base Culture Keto Bread", brand: "Base Culture", score: 77, reason: "Grain-free and gluten-free with almond and coconut flour." },
-    ],
-  },
-  chocolate: {
-    _default: [
-      { name: "Hu Simple Dark Chocolate", brand: "Hu Kitchen", score: 87, reason: "Simple cacao and coconut sugar with no soy lecithin or seed oils." },
-      { name: "Alter Eco Dark Chocolate", brand: "Alter Eco", score: 84, reason: "Fair trade organic cacao with minimal clean ingredients." },
-      { name: "Endangered Species Dark Chocolate", brand: "Endangered Species", score: 81, reason: "Ethically sourced cacao with no artificial flavors or emulsifiers." },
-    ],
-  },
-  popcorn: {
-    _default: [
-      { name: "Lesser Evil Organic Popcorn", brand: "Lesser Evil", score: 83, reason: "Popped in coconut oil with Himalayan salt and no seed oils." },
-      { name: "Boom Chicka Pop Sea Salt", brand: "Angie's", score: 77, reason: "Simple popcorn with sunflower oil and sea salt." },
-      { name: "Skinny Pop Original Popcorn", brand: "Skinny Pop", score: 75, reason: "Three ingredients: popcorn, oil, and salt — cleaner than most." },
-    ],
-  },
-  noodles: {
-    _default: [
-      { name: "Jovial Organic Brown Rice Pasta", brand: "Jovial", score: 88, reason: "Single ingredient organic brown rice — gluten-free with no additives." },
-      { name: "Banza Chickpea Pasta", brand: "Banza", score: 84, reason: "High protein chickpea pasta with no artificial ingredients." },
-      { name: "Lotus Foods Organic Ramen", brand: "Lotus Foods", score: 81, reason: "Organic rice ramen with no MSG or artificial flavors." },
-    ],
-  },
-  milk: {
-    _default: [
-      { name: "Malk Unsweetened Almond Milk", brand: "Malk", score: 89, reason: "Only filtered water, almonds, and salt — no gums or oils." },
-      { name: "Three Trees Organic Almond Milk", brand: "Three Trees", score: 87, reason: "Clean label with no carrageenan, gums, or preservatives." },
-      { name: "Califia Farms Unsweetened Oat Milk", brand: "Califia Farms", score: 77, reason: "No artificial flavors or high-fructose sweeteners." },
-    ],
-  },
-  juice: {
-    _default: [
-      { name: "Lakewood Organic Pure Juice", brand: "Lakewood", score: 86, reason: "100% organic pressed juice with no added sugar or preservatives." },
-      { name: "Suja Organic Cold-Pressed Juice", brand: "Suja", score: 84, reason: "Cold-pressed organic fruits and vegetables — nothing artificial." },
-      { name: "Evolution Fresh Cold-Pressed Juice", brand: "Evolution Fresh", score: 79, reason: "No added sugars or artificial flavors, high-pressure processed." },
-    ],
-  },
-  "ice cream": {
-    _default: [
-      { name: "Three Twins Organic Ice Cream", brand: "Three Twins", score: 81, reason: "USDA Organic with simple dairy and no artificial additives." },
-      { name: "NadaMoo! Dairy-Free Ice Cream", brand: "NadaMoo!", score: 77, reason: "Coconut milk base with organic ingredients and no artificial colors." },
-      { name: "Jeni's Splendid Ice Cream", brand: "Jeni's", score: 75, reason: "Small-batch with grass-fed dairy and no artificial stabilizers." },
-    ],
-  },
-  snack: {
-    _default: [
-      { name: "Simple Mills Snack Crackers", brand: "Simple Mills", score: 84, reason: "Almond flour base with no seed oils or artificial additives." },
-      { name: "Hu Kitchen Grain-Free Crackers", brand: "Hu Kitchen", score: 79, reason: "Paleo-friendly with cassava flour and clean ingredients." },
-      { name: "RXBAR Protein Bar", brand: "RXBAR", score: 86, reason: "Minimal ingredients: egg whites, dates, and nuts — no additives." },
-    ],
-  },
-};
-
-function getAlternatives(product: ProductResult): Alternative[] {
-  const category = inferCategory(product.name, product.brand);
-  const categoryAlts = ALT_DB[category] || ALT_DB.snack;
-  const flaggedCategories = [...new Set(product.flagged.map((f) => f.category))];
-
-  for (const cat of flaggedCategories) {
-    if (categoryAlts[cat]) return categoryAlts[cat];
-  }
-
-  return categoryAlts._default || ALT_DB.snack._default;
-}
 
 // ── Components ─────────────────────────────────────────────────────
 
@@ -316,29 +33,14 @@ const MiniScore = ({ score }: { score: number }) => {
     <div className="relative h-12 w-12 shrink-0">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 44 44">
         <circle cx="22" cy="22" r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth="3" />
-        <circle
-          cx="22"
-          cy="22"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-        />
+        <circle cx="22" cy="22" r={radius} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} />
       </svg>
-      <span
-        className="absolute inset-0 flex items-center justify-center text-xs font-bold"
-        style={{ fontFamily: "var(--font-display)", color }}
-      >
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold" style={{ fontFamily: "var(--font-display)", color }}>
         {score}
       </span>
     </div>
   );
 };
-
-// ComparisonHeader removed per redesign
 
 const ProductImage = ({ imageUrl, category }: { imageUrl?: string; category: string }) => {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(imageUrl ? "loading" : "error");
@@ -354,22 +56,19 @@ const ProductImage = ({ imageUrl, category }: { imageUrl?: string; category: str
 
   return (
     <div className="relative h-[120px] w-full overflow-hidden rounded-t-2xl bg-muted">
-      {status === "loading" && (
-        <div className="absolute inset-0 animate-pulse bg-muted" />
-      )}
-      <img
-        src={imageUrl}
-        alt=""
-        className="h-full w-full object-contain p-3"
-        onLoad={() => setStatus("loaded")}
-        onError={() => setStatus("error")}
-      />
+      {status === "loading" && <div className="absolute inset-0 animate-pulse bg-muted" />}
+      <img src={imageUrl} alt="" className="h-full w-full object-contain p-3" onLoad={() => setStatus("loaded")} onError={() => setStatus("error")} />
     </div>
   );
 };
 
-const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: Alternative; flaggedCategories: string[]; category: string }) => {
+const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: AlternativeProduct; flaggedCategories: string[]; category: string }) => {
   const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
+
+  const handleFindNearMe = () => {
+    const query = encodeURIComponent(`${alt.name} ${alt.brand} near me`);
+    window.open(`https://www.google.com/maps/search/${query}`, "_blank");
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -388,25 +87,48 @@ const AlternativeCard = ({ alt, flaggedCategories, category }: { alt: Alternativ
             <h3 className="text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
               {alt.name}
             </h3>
+
+            {/* Certifications — max 2 */}
+            {alt.certifications.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {alt.certifications.slice(0, 2).map((cert) => (
+                  <span key={cert} className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">
+                    {cert}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-2">
               {alt.reason}
             </p>
+
+            {/* Key ingredients */}
+            {alt.keyIngredients.length > 0 && (
+              <p className="mt-1 text-[10px] italic text-muted-foreground">
+                Made with: {alt.keyIngredients.slice(0, 3).join(", ")}
+              </p>
+            )}
+
             <div className="mt-2 flex items-center justify-between">
-              <div>
+              <div className="flex items-center gap-1.5">
                 {fixesTag && (
                   <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                     No {fixesTag}
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => {}}
-                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                type="button"
-              >
+              <button onClick={handleFindNearMe} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors" type="button">
                 Find near me →
               </button>
             </div>
+
+            {/* Where to find */}
+            {alt.whereToFind.length > 0 && (
+              <p className="mt-1.5 text-[10px] text-muted-foreground">
+                Found at: {alt.whereToFind.slice(0, 3).join(", ")}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -423,55 +145,26 @@ const phDotColor = (ph: number) => {
   return "hsl(var(--muted-foreground))";
 };
 
-const WaterComparisonCard = ({
-  brand,
-  brandKey,
-  isScanned,
-  onTap,
-}: {
-  brand: WaterBrand;
-  brandKey: string;
-  isScanned: boolean;
-  onTap: () => void;
-}) => (
+const WaterComparisonCard = ({ brand, brandKey, isScanned, onTap }: { brand: WaterBrand; brandKey: string; isScanned: boolean; onTap: () => void }) => (
   <button
     onClick={onTap}
     className="flex w-[160px] shrink-0 snap-start flex-col rounded-2xl border bg-card p-4 text-left transition-all duration-150 active:scale-95 active:bg-water/5"
-    style={{
-      borderColor: isScanned ? "hsl(var(--water))" : "hsl(var(--border))",
-      borderWidth: isScanned ? "2px" : "1px",
-    }}
+    style={{ borderColor: isScanned ? "hsl(var(--water))" : "hsl(var(--border))", borderWidth: isScanned ? "2px" : "1px" }}
   >
     {isScanned && (
-      <span className="mb-2 self-start rounded-full bg-water/10 px-2.5 py-0.5 text-[10px] font-semibold text-water">
-        Your scan
-      </span>
+      <span className="mb-2 self-start rounded-full bg-water/10 px-2.5 py-0.5 text-[10px] font-semibold text-water">Your scan</span>
     )}
-    <p className="text-[14px] font-bold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-      {brand.name}
-    </p>
-    <span className="mt-1.5 self-start rounded-full bg-water/10 px-2.5 py-0.5 text-[10px] font-semibold text-water">
-      {brand.type}
-    </span>
-
-    {/* pH */}
+    <p className="text-[14px] font-bold leading-tight" style={{ fontFamily: "var(--font-display)" }}>{brand.name}</p>
+    <span className="mt-1.5 self-start rounded-full bg-water/10 px-2.5 py-0.5 text-[10px] font-semibold text-water">{brand.type}</span>
     <div className="mt-3 flex items-center gap-1.5">
       <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: phDotColor(brand.ph) }} />
-      <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-        {brand.ph.toFixed(1)}
-      </span>
+      <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>{brand.ph.toFixed(1)}</span>
       <span className="text-[10px] text-muted-foreground">pH</span>
     </div>
-
-    {/* TDS */}
     <div className="mt-2 flex items-baseline gap-1">
-      <span className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-        {brand.tds_mg_per_liter}
-      </span>
+      <span className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>{brand.tds_mg_per_liter}</span>
       <span className="text-[10px] text-muted-foreground">mg/L TDS</span>
     </div>
-
-    {/* Minerals */}
     <div className="mt-3 space-y-1 border-t border-border pt-2">
       {[
         { label: "Ca", value: brand.minerals.calcium },
@@ -484,23 +177,13 @@ const WaterComparisonCard = ({
         </div>
       ))}
     </div>
-
-    {/* PFAS */}
     <div className="mt-3 flex items-center gap-1 border-t border-border pt-2 text-[10px]">
       {brand.pfas_tested ? (
-        <>
-          <CheckCircle2 size={12} className="text-primary" />
-          <span className="font-medium text-primary">PFAS tested</span>
-        </>
+        <><CheckCircle2 size={12} className="text-primary" /><span className="font-medium text-primary">PFAS tested</span></>
       ) : (
-        <>
-          <Minus size={12} className="text-muted-foreground" />
-          <span className="text-muted-foreground">PFAS n/a</span>
-        </>
+        <><Minus size={12} className="text-muted-foreground" /><span className="text-muted-foreground">PFAS n/a</span></>
       )}
     </div>
-
-    {/* Chevron affordance */}
     <div className="mt-2 flex justify-end">
       <ChevronRight size={14} className="text-water" />
     </div>
@@ -511,9 +194,7 @@ const HINT_KEY = "pure_water_compare_hint_seen";
 
 const WaterComparison = ({ scannedBrandName }: { scannedBrandName?: string }) => {
   const navigate = useNavigate();
-  const brands = WATER_COMPARE_KEYS.map((key) => ({ key, brand: WATER_DATABASE[key] })).filter(
-    (b) => !!b.brand
-  );
+  const brands = WATER_COMPARE_KEYS.map((key) => ({ key, brand: WATER_DATABASE[key] })).filter((b) => !!b.brand);
   const scannedLower = scannedBrandName?.toLowerCase() ?? "";
 
   const [showHint, setShowHint] = useState(false);
@@ -528,63 +209,32 @@ const WaterComparison = ({ scannedBrandName }: { scannedBrandName?: string }) =>
     if (isScanned) {
       navigate(-1);
     } else {
-      navigate("/water-report", {
-        state: {
-          product: { name: brand.name, brand: brand.name },
-          waterBrand: WATER_DATABASE[brandKey],
-        },
-      });
+      navigate("/water-report", { state: { product: { name: brand.name, brand: brand.name }, waterBrand: WATER_DATABASE[brandKey] } });
     }
   };
 
   return (
     <div className="min-h-screen bg-background pb-28">
       <div className="flex items-center gap-3 px-5 pt-5">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
-        >
+        <button onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted">
           <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
       </div>
-
       <div className="mt-6 px-5 sm:px-6">
         <div className="flex items-center gap-2">
           <Droplets size={20} className="text-water" />
-          <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-            Compare water brands
-          </h1>
+          <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>Compare water brands</h1>
         </div>
-
         <div className="mt-5 -mx-5 sm:-mx-6 px-5 sm:px-6 overflow-x-auto">
           <div className="flex gap-3 snap-x snap-mandatory pb-4" style={{ scrollSnapType: "x mandatory" }}>
             {brands.map(({ key, brand }) => {
-              const isScanned =
-                !!scannedLower &&
-                (scannedLower.includes(brand.name.toLowerCase()) ||
-                  brand.name.toLowerCase().includes(scannedLower));
-              return (
-                <WaterComparisonCard
-                  key={brand.name}
-                  brand={brand}
-                  brandKey={key}
-                  isScanned={isScanned}
-                  onTap={() => handleTap(key, brand, isScanned)}
-                />
-              );
+              const isScanned = !!scannedLower && (scannedLower.includes(brand.name.toLowerCase()) || brand.name.toLowerCase().includes(scannedLower));
+              return <WaterComparisonCard key={brand.name} brand={brand} brandKey={key} isScanned={isScanned} onTap={() => handleTap(key, brand, isScanned)} />;
             })}
           </div>
         </div>
-
-        <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
-          Showing top-rated water brands by source quality and mineral profile
-        </p>
-
-        {showHint && (
-          <p className="mt-1.5 text-center text-[11px] text-muted-foreground/40">
-            Tap any brand to see the full water report
-          </p>
-        )}
+        <p className="mt-2 text-center text-[11px] text-muted-foreground/60">Showing top-rated water brands by source quality and mineral profile</p>
+        {showHint && <p className="mt-1.5 text-center text-[11px] text-muted-foreground/40">Tap any brand to see the full water report</p>}
       </div>
     </div>
   );
@@ -606,19 +256,9 @@ const Alternatives = () => {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 pb-28">
         <ScanLine size={48} className="text-muted-foreground/40" strokeWidth={1.5} />
-        <h2
-          className="mt-4 text-lg font-semibold"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          No product scanned
-        </h2>
-        <p className="mt-2 text-center text-sm text-muted-foreground">
-          Scan a product first to see clean alternatives.
-        </p>
-        <button
-          onClick={() => navigate("/scanner")}
-          className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors"
-        >
+        <h2 className="mt-4 text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>No product scanned</h2>
+        <p className="mt-2 text-center text-sm text-muted-foreground">Scan a product first to see clean alternatives.</p>
+        <button onClick={() => navigate("/scanner")} className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors">
           Go to Scanner
         </button>
       </div>
@@ -627,34 +267,21 @@ const Alternatives = () => {
 
   const category = inferCategory(product.name, product.brand);
   const alternatives = getAlternatives(product);
-  const sorted = [...alternatives].sort((a, b) => b.score - a.score);
-  const topAlt = sorted[0];
   const flaggedCategories = [...new Set(product.flagged.map((f) => f.category))];
 
-  // Empty state for no alternatives
-  if (sorted.length === 0) {
+  if (alternatives.length === 0) {
     return (
       <div className="min-h-screen bg-background pb-28">
         <div className="flex items-center gap-3 px-5 pt-5">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
-          >
+          <button onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted">
             <ArrowLeft size={20} strokeWidth={1.8} />
           </button>
         </div>
         <div className="flex flex-col items-center justify-center px-6 pt-24">
           <PackageOpen size={56} className="text-muted-foreground/30" strokeWidth={1.2} />
-          <h2 className="mt-5 text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-            No alternatives in our database yet
-          </h2>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            We're adding new products weekly. Check back soon.
-          </p>
-          <button
-            onClick={() => navigate("/scanner")}
-            className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors"
-          >
+          <h2 className="mt-5 text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>No alternatives in our database yet</h2>
+          <p className="mt-2 text-center text-sm text-muted-foreground">We're adding new products weekly. Check back soon.</p>
+          <button onClick={() => navigate("/scanner")} className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors">
             Scan something else
           </button>
         </div>
@@ -665,37 +292,22 @@ const Alternatives = () => {
   return (
     <div className="min-h-screen bg-background pb-28">
       <div className="flex items-center gap-3 px-5 pt-5">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted"
-        >
+        <button onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors active:bg-muted">
           <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
       </div>
-
       <div className="mt-6 px-5 sm:px-6">
-        {/* Section header */}
         <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-          Cleaner alternatives to{" "}
-          <span className="text-primary">{product.name}</span>
+          Cleaner alternatives to <span className="text-primary">{product.name}</span>
         </h1>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          Sorted by Pure Score — best first
-        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">Sorted by Pure Score — best first</p>
 
-        {/* Sorted cards */}
         <div className="mt-4 flex flex-col gap-2">
-          {sorted.map((alt) => (
-            <AlternativeCard
-              key={alt.name}
-              alt={alt}
-              flaggedCategories={flaggedCategories}
-              category={category}
-            />
+          {alternatives.map((alt) => (
+            <AlternativeCard key={alt.name} alt={alt} flaggedCategories={flaggedCategories} category={category} />
           ))}
         </div>
 
-        {/* Footer */}
         <div className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Info size={13} strokeWidth={1.8} />
           Pure scores are based on ingredient analysis. Always check labels.
