@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, ChevronRight, PackageOpen } from "lucide-react";
+import { ArrowLeft, MapPin, Info, ScanLine, Droplets, CheckCircle2, Minus, ChevronRight, PackageOpen } from "lucide-react";
 import type { ProductResult } from "@/lib/scoring";
 import { WATER_DATABASE } from "@/lib/water-database";
 import type { WaterBrand } from "@/lib/water-database";
@@ -312,73 +312,45 @@ const MiniScore = ({ score }: { score: number }) => {
   );
 };
 
-const ComparisonHeader = ({ product, topAlt }: { product: ProductResult; topAlt: Alternative }) => {
-  const improvement = topAlt.score - product.score;
-  const truncate = (s: string, len: number) => s.length > len ? s.slice(0, len) + "…" : s;
+// ComparisonHeader removed per redesign
 
-  return (
-    <div className="flex items-center justify-center gap-2 flex-wrap">
-      <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5">
-        <span className="text-xs font-bold tabular-nums" style={{ fontFamily: "var(--font-display)", color: scoreColor(product.score) }}>
-          {product.score}
-        </span>
-        <span className="text-xs font-medium text-foreground">{truncate(product.name, 12)}</span>
-      </div>
-      <div className="flex items-center gap-0.5 text-primary">
-        <span className="text-[10px] font-bold">+{improvement}</span>
-        <ArrowRight size={14} strokeWidth={2.5} />
-      </div>
-      <div className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5">
-        <span className="text-xs font-bold tabular-nums text-primary" style={{ fontFamily: "var(--font-display)" }}>
-          {topAlt.score}
-        </span>
-        <span className="text-xs font-medium text-foreground">{truncate(topAlt.name, 12)}</span>
-      </div>
-    </div>
-  );
-};
-
-const AlternativeCard = ({ alt, productScore, flaggedCategories }: { alt: Alternative; productScore: number; flaggedCategories: string[] }) => {
-  const improvement = alt.score - productScore;
+const AlternativeCard = ({ alt, flaggedCategories }: { alt: Alternative; flaggedCategories: string[] }) => {
   const fixesTag = flaggedCategories.length > 0 ? flaggedCategories[0] : null;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex gap-3 sm:gap-4">
-        <div className="flex flex-col items-center gap-1.5">
+      <div className="flex gap-3">
+        {/* Left column: score ring */}
+        <div className="flex items-start pt-1">
           <MiniScore score={alt.score} />
-          {improvement > 0 && (
-            <span className="rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white whitespace-nowrap">
-              +{improvement} pts vs yours
-            </span>
-          )}
         </div>
+        {/* Right column */}
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
             {alt.brand}
           </p>
-          <h3 className="text-sm sm:text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+          <h3 className="text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
             {alt.name}
           </h3>
-          <div className="mt-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Why it's better</p>
-            <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
-              {/* Reframe reason as 'No [flagged ingredient]' */}
-              {alt.reason.startsWith("Made with") || alt.reason.startsWith("Cooked in") || alt.reason.startsWith("Uses") || alt.reason.startsWith("Simple") || alt.reason.startsWith("Clean") || alt.reason.startsWith("Only") || alt.reason.startsWith("Egg whites") || alt.reason.startsWith("Two ingredients") || alt.reason.startsWith("Sprouted") || alt.reason.startsWith("USDA Organic") || alt.reason.startsWith("Organic") || alt.reason.startsWith("Sweetened") || alt.reason.startsWith("Paleo-friendly") || alt.reason.startsWith("Prebiotic") || alt.reason.startsWith("Brewed") || alt.reason.startsWith("Single ingredient") || alt.reason.startsWith("Ethically sourced") || alt.reason.startsWith("Small-batch") || alt.reason.startsWith("Plant-based") || alt.reason.startsWith("Naturally refined") || alt.reason.startsWith("Cold-pressed") || alt.reason.startsWith("100%") || alt.reason.startsWith("Low sugar") || alt.reason.startsWith("Minimal ingredients") || alt.reason.startsWith("No") ? alt.reason : `No ${fixesTag?.toLowerCase()}`}
-            </p>
+          <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-2">
+            {alt.reason}
+          </p>
+          <div className="mt-2 flex items-center justify-between">
+            <div>
+              {fixesTag && (
+                <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  No {fixesTag}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => {}}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              type="button"
+            >
+              Find near me →
+            </button>
           </div>
-          {fixesTag && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-600/20 px-2.5 py-0.5 text-[10px] font-semibold text-green-600">
-              <CheckCircle2 size={10} /> Fixes: {fixesTag}
-            </span>
-          )}
-          <button
-            onClick={() => {}}
-            className="mt-2 flex items-center gap-0.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-            type="button"
-          >
-            <MapPin size={10} /> Find near me →
-          </button>
         </div>
       </div>
     </div>
@@ -644,35 +616,30 @@ const Alternatives = () => {
       </div>
 
       <div className="mt-6 px-5 sm:px-6">
-        {/* 1. Comparison header */}
-        <ComparisonHeader product={product} topAlt={topAlt} />
+        {/* Section header */}
+        <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+          Cleaner alternatives to{" "}
+          <span className="text-primary">{product.name}</span>
+        </h1>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Sorted by Pure Score — best first
+        </p>
 
-        {/* 5. Section label */}
-        <div className="mt-6">
-          <h1 className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-            Better options in this category
-          </h1>
-          <p className="mt-0.5 text-[11px] text-muted-foreground/60">
-            Sorted by Pure Score — highest first
-          </p>
-        </div>
-
-        {/* 2/3/4. Sorted cards with improvement badges */}
-        <div className="mt-4 flex flex-col gap-3">
+        {/* Sorted cards */}
+        <div className="mt-4 flex flex-col gap-2">
           {sorted.map((alt) => (
             <AlternativeCard
               key={alt.name}
               alt={alt}
-              productScore={product.score}
               flaggedCategories={flaggedCategories}
             />
           ))}
         </div>
 
-        {/* 7. Footer */}
+        {/* Footer */}
         <div className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Info size={13} strokeWidth={1.8} />
-          Pure scores are based on ingredient analysis. Always check labels before purchasing.
+          Pure scores are based on ingredient analysis. Always check labels.
         </div>
       </div>
     </div>
