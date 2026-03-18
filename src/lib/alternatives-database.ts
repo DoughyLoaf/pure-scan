@@ -264,11 +264,12 @@ export function inferCategory(name: string, brand?: string): string {
   if (/peanut\s*butter|almond\s*butter|nut\s*butter|sun\s*butter|cashew\s*butter/i.test(n)) return "peanut butter";
   if (/dressing|vinaigrette|ranch|caesar/i.test(n)) return "salad dressing";
   if (/cooking\s*oil|olive\s*oil|avocado\s*oil|coconut\s*oil|canola|vegetable\s*oil/i.test(n)) return "cooking oil";
+  if (/popcorn|pop corn|kettle corn|kettlecorn|smartfood|boom chicka|lesser evil|skinny pop|skinnypop|angie|quinn popcorn/i.test(n)) return "popcorn";
   if (/chip|crisp|frito|dorito|cheeto/i.test(n)) return "chips";
   if (/cereal|granola|flake|crunch|cheerio|loop|oatmeal/i.test(n)) return "cereal";
   if (/cracker|pretzel|goldfish/i.test(n)) return "crackers";
   if (/yogurt|yoghurt|kefir/i.test(n)) return "yogurt";
-  if (/soda|cola|pop|sprite|fanta|dew/i.test(n)) return "soda";
+  if (/soda|cola|sprite|fanta|mountain dew|dr pepper|\bpop\b/i.test(n)) return "soda";
   if (/juice/i.test(n)) return "juice";
   if (/cookie|oreo|biscuit/i.test(n)) return "cookies";
   if (/candy|gumm|skittle|starburst|sour/i.test(n)) return "candy";
@@ -279,7 +280,6 @@ export function inferCategory(name: string, brand?: string): string {
   if (/noodle|ramen|pasta|mac.*cheese/i.test(n)) return "noodles";
   if (/milk|oat.*milk|almond.*milk/i.test(n)) return "milk";
   if (/chocolate|cocoa|hazelnut|nutella|spread/i.test(n)) return "chocolate";
-  if (/popcorn/i.test(n)) return "popcorn";
   if (/frozen/i.test(n)) return "frozen meals";
   return "snack";
 }
