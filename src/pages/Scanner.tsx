@@ -336,10 +336,13 @@ const Scanner = () => {
           supportedScanTypes: [0],
         },
         (decodedText: string) => {
-          console.log('Barcode decoded:', decodedText);
+          console.log('SCAN SUCCESS:', decodedText);
           if (!scanningRef.current || !decodedText || decodedText.length < 4) return;
           scanningRef.current = false;
-          void handleDetectedBarcode(decodedText);
+          html5QrCode
+            .stop()
+            .then(() => handleDetectedBarcode(decodedText))
+            .catch(() => handleDetectedBarcode(decodedText));
         },
         () => {}
       );
