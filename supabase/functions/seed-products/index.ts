@@ -69,13 +69,13 @@ function hash(s: string): string {
 }
 
 async function safeFetch(url: string): Promise<any | null> {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     try {
       const r = await fetch(url, { headers: { "User-Agent": "PureApp/1.0" } });
       if (r.ok) return await r.json();
       return null;
     } catch {
-      await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+      await new Promise((r) => setTimeout(r, 300 * (i + 1)));
     }
   }
   return null;
@@ -87,84 +87,83 @@ function buildRow(barcode: string, p: any) {
   if (!name || !ingredients) return null;
   const { score, flaggedNames, flaggedCategories, flaggedCount } = analyze(ingredients);
   return {
-    barcode,
-    product_name: name,
-    brand: p.brands || "Unknown Brand",
-    pure_score: score,
-    ingredients_raw: ingredients,
-    flagged_count: flaggedCount,
-    flagged_categories: flaggedCategories,
-    flagged_ingredients: flaggedNames,
-    categories_raw: "",
-    image_url: "",
-    is_water: false,
-    scan_count: 0,
-    enrichment_source: "open_food_facts",
-    data_confidence: "high",
-    data_source: "open_food_facts",
-    ingredients_hash: hash(ingredients.toLowerCase().trim()),
-    needs_review: false,
-    manually_verified: false,
+    barcode, product_name: name, brand: p.brands || "Unknown Brand",
+    pure_score: score, ingredients_raw: ingredients, flagged_count: flaggedCount,
+    flagged_categories: flaggedCategories, flagged_ingredients: flaggedNames,
+    categories_raw: "", image_url: "", is_water: false, scan_count: 0,
+    enrichment_source: "open_food_facts", data_confidence: "high",
+    data_source: "open_food_facts", ingredients_hash: hash(ingredients.toLowerCase().trim()),
+    needs_review: false, manually_verified: false,
   };
 }
 
-const SEARCH_URLS = [
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=snacks&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=cereals&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=beverages&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=dairy&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=condiments&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=frozen-foods&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
-];
+const CATEGORIES = ["snacks", "cereals", "beverages"];
+const PAGES = 10;
+const BASE = "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=100&tagtype_0=categories&tag_contains_0=contains&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // Get existing barcodes
   const { data: existing } = await supabase.from("products").select("barcode").limit(10000);
   const existingSet = new Set((existing || []).map((r: any) => r.barcode));
+  const startCount = existingSet.size;
 
-  let added = 0, skippedDup = 0, skippedNoData = 0;
-  const queryResults: { query: number; fetched: number; newAdded: number }[] = [];
+  let totalAdded = 0;
+  const categoryResults: any[] = [];
 
-  // Fetch all 7 queries in parallel
-  const allData = await Promise.all(SEARCH_URLS.map(url => safeFetch(url)));
+  for (const category of CATEGORIES) {
+    let catAdded = 0;
+    let catFetched = 0;
+    let catSkipDup = 0;
+    let catSkipNoData = 0;
 
-  for (let qi = 0; qi < allData.length; qi++) {
-    const products = allData[qi]?.products || [];
-    let queryAdded = 0;
+    // Fetch all 10 pages in parallel
+    const pageUrls = Array.from({ length: PAGES }, (_, i) =>
+      `${BASE}&tag_0=${category}&page=${i + 1}`
+    );
+    const allPages = await Promise.all(pageUrls.map(url => safeFetch(url)));
+
     const toInsert: any[] = [];
-
-    for (const p of products) {
-      const bc = p.code;
-      if (!bc || existingSet.has(bc)) { if (bc && existingSet.has(bc)) skippedDup++; continue; }
-      const row = buildRow(bc, p);
-      if (!row) { skippedNoData++; continue; }
-      existingSet.add(bc);
-      toInsert.push(row);
+    for (const pageData of allPages) {
+      const products = pageData?.products || [];
+      catFetched += products.length;
+      for (const p of products) {
+        const bc = p.code;
+        if (!bc || existingSet.has(bc)) { if (bc && existingSet.has(bc)) catSkipDup++; continue; }
+        const row = buildRow(bc, p);
+        if (!row) { catSkipNoData++; continue; }
+        existingSet.add(bc);
+        toInsert.push(row);
+      }
     }
 
+    // Batch upsert
     for (let i = 0; i < toInsert.length; i += 50) {
       const batch = toInsert.slice(i, i + 50);
       const { error } = await supabase.from("products").upsert(batch, { onConflict: "barcode", ignoreDuplicates: true });
-      if (!error) { added += batch.length; queryAdded += batch.length; }
-      else { console.error(`Query ${qi + 1} batch error:`, error.message); skippedDup += batch.length; }
+      if (!error) catAdded += batch.length;
+      else console.error(`${category} batch error:`, error.message);
     }
 
-    queryResults.push({ query: qi + 1, fetched: products.length, newAdded: queryAdded });
+    totalAdded += catAdded;
+    categoryResults.push({
+      category,
+      fetched: catFetched,
+      new_added: catAdded,
+      skipped_duplicate: catSkipDup,
+      skipped_no_data: catSkipNoData,
+      running_total: startCount + totalAdded,
+    });
   }
 
-  // Get final count
   const { count } = await supabase.from("products").select("*", { count: "exact", head: true });
 
   return new Response(JSON.stringify({
-    total_products_in_db: count,
-    newly_added: added,
-    skipped_duplicate: skippedDup,
-    skipped_no_data: skippedNoData,
-    query_results: queryResults,
+    final_product_count: count,
+    started_with: startCount,
+    total_newly_added: totalAdded,
+    categories: categoryResults,
   }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
