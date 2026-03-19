@@ -130,10 +130,11 @@ Deno.serve(async (req) => {
   let added = 0, skippedDup = 0, skippedNoData = 0;
   const queryResults: { query: number; fetched: number; newAdded: number }[] = [];
 
-  // Process each query sequentially to avoid rate limits
-  for (let qi = 0; qi < SEARCH_URLS.length; qi++) {
-    const data = await safeFetch(SEARCH_URLS[qi]);
-    const products = data?.products || [];
+  // Fetch all 7 queries in parallel
+  const allData = await Promise.all(SEARCH_URLS.map(url => safeFetch(url)));
+
+  for (let qi = 0; qi < allData.length; qi++) {
+    const products = allData[qi]?.products || [];
     let queryAdded = 0;
     const toInsert: any[] = [];
 
@@ -146,7 +147,6 @@ Deno.serve(async (req) => {
       toInsert.push(row);
     }
 
-    // Batch upsert
     for (let i = 0; i < toInsert.length; i += 50) {
       const batch = toInsert.slice(i, i + 50);
       const { error } = await supabase.from("products").upsert(batch, { onConflict: "barcode", ignoreDuplicates: true });
@@ -155,9 +155,6 @@ Deno.serve(async (req) => {
     }
 
     queryResults.push({ query: qi + 1, fetched: products.length, newAdded: queryAdded });
-
-    // Small delay between queries to be polite to OFF
-    if (qi < SEARCH_URLS.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
 
   // Get final count
