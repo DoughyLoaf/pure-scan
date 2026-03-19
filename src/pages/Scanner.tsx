@@ -254,31 +254,27 @@ const Scanner = () => {
 
   const handleDetectedBarcode = useCallback(
     async (code: string) => {
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       try {
-        console.log("SCAN SUCCESS:", code);
-        alert("Scanned: " + code);
-        await stopScanner();
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 1200;
+        gain.gain.value = 0.15;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.15);
+      } catch {}
 
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 1200;
-          gain.gain.value = 0.15;
-          osc.start();
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-          osc.stop(ctx.currentTime + 0.15);
-        } catch {}
+      if (!canScan()) {
+        navigate("/paywall");
+        return;
+      }
 
-        if (!canScan()) {
-          navigate("/paywall");
-          return;
-        }
-
-        setScanLoading(true);
+      setScanLoading(true);
+      try {
         lastBarcode.current = code;
         const product = await fetchProduct(code);
         if (product) {
@@ -292,9 +288,7 @@ const Scanner = () => {
         notFoundBarcode.current = code;
         setNotFound(true);
         setShowManual(true);
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        alert("Error: " + message);
+      } catch {
         trackUnknownBarcode(code);
         setScanLoading(false);
         setBarcode(code);
@@ -303,7 +297,7 @@ const Scanner = () => {
         setShowManual(true);
       }
     },
-    [navigate, navigateWithScan, stopScanner]
+    [navigate, navigateWithScan]
   );
 
   const startBarcodeScanner = useCallback(async () => {
@@ -342,10 +336,13 @@ const Scanner = () => {
           supportedScanTypes: [0],
         },
         (decodedText: string) => {
-          console.log('Barcode decoded:', decodedText);
+          console.log('SCAN SUCCESS:', decodedText);
           if (!scanningRef.current || !decodedText || decodedText.length < 4) return;
           scanningRef.current = false;
-          void handleDetectedBarcode(decodedText);
+          html5QrCode
+            .stop()
+            .then(() => handleDetectedBarcode(decodedText))
+            .catch(() => handleDetectedBarcode(decodedText));
         },
         () => {}
       );
