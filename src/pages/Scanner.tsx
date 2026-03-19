@@ -336,6 +336,7 @@ const Scanner = () => {
           supportedScanTypes: [0],
         },
         (decodedText: string) => {
+          console.log('Barcode decoded:', decodedText);
           if (!scanningRef.current || !decodedText || decodedText.length < 4) return;
           scanningRef.current = false;
           html5QrCode

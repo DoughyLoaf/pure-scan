@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface FlaggedIngredient {
   name: string;
   category: string;
@@ -140,24 +142,83 @@ function cacheProduct(barcode: string, product: ProductResult) {
 
 export async function fetchProduct(barcode: string): Promise<ProductResult | null> {
   const cached = getCachedProduct(barcode);
-  if (cached) return cached;
+  if (cached) {
+    console.log('[fetchProduct] Cache hit for', barcode);
+    return cached;
+  }
 
-  const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-  if (!res.ok) return null;
+  // 1. Check our products database first
+  try {
+    const { data: dbProduct } = await supabase
+      .from('products')
+      .select('product_name, brand, pure_score, ingredients_raw, flagged_ingredients, flagged_categories, image_url, categories_raw')
+      .eq('barcode', barcode)
+      .maybeSingle();
 
-  const data = await res.json();
-  if (data.status !== 1 || !data.product) return null;
+    if (dbProduct && dbProduct.ingredients_raw) {
+      console.log('[fetchProduct] DB hit for', barcode, dbProduct.product_name);
+      const { score, flagged } = analyzeIngredients(dbProduct.ingredients_raw);
+      const result: ProductResult = {
+        name: dbProduct.product_name,
+        brand: dbProduct.brand || 'Unknown Brand',
+        score,
+        ingredientsRaw: dbProduct.ingredients_raw,
+        flagged,
+        imageUrl: dbProduct.image_url || undefined,
+        categoriesRaw: dbProduct.categories_raw || '',
+      };
+      cacheProduct(barcode, result);
+      return result;
+    }
+  } catch (err) {
+    console.error('[fetchProduct] DB lookup error:', err);
+  }
 
-  const product = data.product;
-  const name = product.product_name || "Unknown Product";
-  const brand = product.brands || "Unknown Brand";
-  const ingredientsRaw = product.ingredients_text || "";
+  // 2. Fall back to Open Food Facts API
+  console.log('[fetchProduct] Fetching from OFF for', barcode);
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+    if (!res.ok) return null;
 
-  const imageUrl = product.image_front_url || product.image_front_small_url || undefined;
-  const categoriesRaw = product.categories_tags?.join(',') ?? '';
-  const { score, flagged } = analyzeIngredients(ingredientsRaw);
-  const result: ProductResult = { name, brand, score, ingredientsRaw, flagged, imageUrl, categoriesRaw };
+    const data = await res.json();
+    if (!data.product) return null;
 
-  cacheProduct(barcode, result);
-  return result;
+    const product = data.product;
+    const name = product.product_name || "Unknown Product";
+    const brand = product.brands || "Unknown Brand";
+    const ingredientsRaw = product.ingredients_text || "";
+
+    if (!ingredientsRaw) return null;
+
+    const imageUrl = product.image_front_url || product.image_front_small_url || undefined;
+    const categoriesRaw = product.categories_tags?.join(',') ?? '';
+    const { score, flagged } = analyzeIngredients(ingredientsRaw);
+    const result: ProductResult = { name, brand, score, ingredientsRaw, flagged, imageUrl, categoriesRaw };
+
+    cacheProduct(barcode, result);
+
+    // 3. Save to our DB for future lookups (non-blocking)
+    supabase.rpc('upsert_product', {
+      p_barcode: barcode,
+      p_product_name: name,
+      p_brand: brand,
+      p_pure_score: score,
+      p_ingredients_raw: ingredientsRaw,
+      p_flagged_count: flagged.length,
+      p_flagged_categories: [...new Set(flagged.map(f => f.category))],
+      p_flagged_ingredients: flagged.map(f => f.name),
+      p_categories_raw: categoriesRaw,
+      p_image_url: imageUrl || '',
+      p_is_water: false,
+      p_water_brand: '',
+    }).then(({ error }) => {
+      if (error) console.error('[fetchProduct] DB save error:', error);
+      else console.log('[fetchProduct] Saved to DB:', barcode);
+    });
+
+    return result;
+  } catch (err) {
+    console.error('[fetchProduct] OFF fetch error:', err);
+    return null;
+  }
 }
