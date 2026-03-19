@@ -134,8 +134,8 @@ Deno.serve(async (req) => {
   // Phase 1: Priority barcodes (parallel fetch, sequential insert)
   const priorityProducts = await Promise.all(
     PRIORITY.map(async (bc) => {
-      const data = await safeFetch(`https://world.openfoodfacts.org/api/v0/product/${bc}.json`);
-      return { bc, product: data?.status === 1 ? data.product : null };
+      const data = await safeFetch(`https://world.openfoodfacts.org/api/v2/product/${bc}.json`);
+      return { bc, product: data?.product ? data.product : null };
     })
   );
 
