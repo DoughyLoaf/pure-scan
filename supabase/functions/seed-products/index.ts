@@ -81,11 +81,24 @@ const PRIORITY_BARCODES = [
   "018627100317", "722252400383", "853026003913", "840379000015",
 ];
 
+async function fetchWithRetry(url: string, retries = 3): Promise<Response | null> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "PureApp/1.0 (seed-products)", "Connection": "keep-alive" },
+      });
+      return res;
+    } catch (e) {
+      console.log(`Fetch attempt ${i + 1} failed for ${url}: ${e.message}`);
+      if (i < retries - 1) await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  return null;
+}
+
 async function fetchOFFProduct(barcode: string) {
-  const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-    headers: { "User-Agent": "PureApp/1.0 (seed-products)" },
-  });
-  if (!res.ok) return null;
+  const res = await fetchWithRetry(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+  if (!res || !res.ok) return null;
   const data = await res.json();
   if (data.status !== 1 || !data.product) return null;
   return data.product;
@@ -93,10 +106,8 @@ async function fetchOFFProduct(barcode: string) {
 
 async function fetchOFFSearchPage(page: number) {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&sort_by=unique_scans_n&page=${page}&fields=code,product_name,brands,ingredients_text,image_front_url,categories_tags`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "PureApp/1.0 (seed-products)" },
-  });
-  if (!res.ok) return [];
+  const res = await fetchWithRetry(url);
+  if (!res || !res.ok) return [];
   const data = await res.json();
   return data.products || [];
 }
