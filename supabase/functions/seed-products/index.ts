@@ -72,6 +72,11 @@ const PRIORITY = [
   "014100044208","016000275270","038000138416","044000032029",
   "021130126026","028400090315","040000529163","016000442672",
   "018627100317","722252400383","853026003913","840379000015",
+  "049000028911","036800105355","038000849619","016000119765",
+  "030100113705","037600102568","010300830218","021000015016",
+  "038000126536","041196898031","028400064057","012000161155",
+  "049000006582","034000020119","041196012531","038000185434",
+  "021130310708","038000037528",
 ];
 
 async function safeFetch(url: string): Promise<any | null> {
@@ -129,8 +134,8 @@ Deno.serve(async (req) => {
   // Phase 1: Priority barcodes (parallel fetch, sequential insert)
   const priorityProducts = await Promise.all(
     PRIORITY.map(async (bc) => {
-      const data = await safeFetch(`https://world.openfoodfacts.org/api/v0/product/${bc}.json`);
-      return { bc, product: data?.status === 1 ? data.product : null };
+      const data = await safeFetch(`https://world.openfoodfacts.org/api/v2/product/${bc}.json`);
+      return { bc, product: data?.product ? data.product : null };
     })
   );
 
