@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface FlaggedIngredient {
   name: string;
   category: string;
