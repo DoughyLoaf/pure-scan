@@ -68,17 +68,6 @@ function hash(s: string): string {
   return Math.abs(h).toString(36);
 }
 
-const PRIORITY = [
-  "014100044208","016000275270","038000138416","044000032029",
-  "021130126026","028400090315","040000529163","016000442672",
-  "018627100317","722252400383","853026003913","840379000015",
-  "049000028911","036800105355","038000849619","016000119765",
-  "030100113705","037600102568","010300830218","021000015016",
-  "038000126536","041196898031","028400064057","012000161155",
-  "049000006582","034000020119","041196012531","038000185434",
-  "021130310708","038000037528",
-];
-
 async function safeFetch(url: string): Promise<any | null> {
   for (let i = 0; i < 3; i++) {
     try {
@@ -106,8 +95,8 @@ function buildRow(barcode: string, p: any) {
     flagged_count: flaggedCount,
     flagged_categories: flaggedCategories,
     flagged_ingredients: flaggedNames,
-    categories_raw: (p.categories_tags || []).join(","),
-    image_url: p.image_front_url || "",
+    categories_raw: "",
+    image_url: "",
     is_water: false,
     scan_count: 0,
     enrichment_source: "open_food_facts",
@@ -119,6 +108,16 @@ function buildRow(barcode: string, p: any) {
   };
 }
 
+const SEARCH_URLS = [
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=snacks&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=cereals&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=beverages&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=dairy&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=condiments&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+  "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&tagtype_0=categories&tag_contains_0=contains&tag_0=frozen-foods&tagtype_1=countries&tag_contains_1=contains&tag_1=united-states&sort_by=unique_scans_n&fields=code,product_name,brands,ingredients_text",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -129,59 +128,46 @@ Deno.serve(async (req) => {
   const existingSet = new Set((existing || []).map((r: any) => r.barcode));
 
   let added = 0, skippedDup = 0, skippedNoData = 0;
-  const priorityResults: any[] = [];
+  const queryResults: { query: number; fetched: number; newAdded: number }[] = [];
 
-  // Phase 1: Priority barcodes (parallel fetch, sequential insert)
-  const priorityProducts = await Promise.all(
-    PRIORITY.map(async (bc) => {
-      const data = await safeFetch(`https://world.openfoodfacts.org/api/v2/product/${bc}.json`);
-      return { bc, product: data?.product ? data.product : null };
-    })
-  );
+  // Process each query sequentially to avoid rate limits
+  for (let qi = 0; qi < SEARCH_URLS.length; qi++) {
+    const data = await safeFetch(SEARCH_URLS[qi]);
+    const products = data?.products || [];
+    let queryAdded = 0;
+    const toInsert: any[] = [];
 
-  for (const { bc, product } of priorityProducts) {
-    if (!product) { skippedNoData++; priorityResults.push({ barcode: bc, status: "not_found_on_OFF" }); continue; }
-    if (existingSet.has(bc)) { skippedDup++; priorityResults.push({ barcode: bc, name: product.product_name, status: "duplicate" }); continue; }
-    const row = buildRow(bc, product);
-    if (!row) { skippedNoData++; priorityResults.push({ barcode: bc, status: "missing_data" }); continue; }
-    const { error } = await supabase.from("products").insert(row);
-    if (error) { skippedDup++; priorityResults.push({ barcode: bc, name: row.product_name, status: "insert_error" }); }
-    else { added++; existingSet.add(bc); priorityResults.push({ barcode: bc, name: row.product_name, score: row.pure_score, status: "added" }); }
+    for (const p of products) {
+      const bc = p.code;
+      if (!bc || existingSet.has(bc)) { if (bc && existingSet.has(bc)) skippedDup++; continue; }
+      const row = buildRow(bc, p);
+      if (!row) { skippedNoData++; continue; }
+      existingSet.add(bc);
+      toInsert.push(row);
+    }
+
+    // Batch upsert
+    for (let i = 0; i < toInsert.length; i += 50) {
+      const batch = toInsert.slice(i, i + 50);
+      const { error } = await supabase.from("products").upsert(batch, { onConflict: "barcode", ignoreDuplicates: true });
+      if (!error) { added += batch.length; queryAdded += batch.length; }
+      else { console.error(`Query ${qi + 1} batch error:`, error.message); skippedDup += batch.length; }
+    }
+
+    queryResults.push({ query: qi + 1, fetched: products.length, newAdded: queryAdded });
+
+    // Small delay between queries to be polite to OFF
+    if (qi < SEARCH_URLS.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
 
-  // Phase 2: Bulk pages (fetch all 3 pages in parallel)
-  const pages = await Promise.all([1, 2, 3].map(async (p) => {
-    const data = await safeFetch(`https://world.openfoodfacts.org/cgi/search.pl?action=process&json=true&page_size=200&sort_by=unique_scans_n&page=${p}&fields=code,product_name,brands,ingredients_text,image_front_url,categories_tags`);
-    return data?.products || [];
-  }));
-
-  // Batch insert in chunks of 50
-  const allProducts = pages.flat();
-  const toInsert: any[] = [];
-
-  for (const p of allProducts) {
-    const bc = p.code;
-    if (!bc || existingSet.has(bc)) { if (bc && existingSet.has(bc)) skippedDup++; continue; }
-    const row = buildRow(bc, p);
-    if (!row) { skippedNoData++; continue; }
-    existingSet.add(bc);
-    toInsert.push(row);
-  }
-
-  // Insert in batches of 50
-  for (let i = 0; i < toInsert.length; i += 50) {
-    const batch = toInsert.slice(i, i + 50);
-    const { error, data } = await supabase.from("products").upsert(batch, { onConflict: "barcode", ignoreDuplicates: true });
-    if (!error) added += batch.length;
-    else { console.error("Batch insert error:", error.message); skippedDup += batch.length; }
-  }
+  // Get final count
+  const { count } = await supabase.from("products").select("*", { count: "exact", head: true });
 
   return new Response(JSON.stringify({
-    total_processed: PRIORITY.length + allProducts.length,
-    added,
+    total_products_in_db: count,
+    newly_added: added,
     skipped_duplicate: skippedDup,
     skipped_no_data: skippedNoData,
-    priority_results: priorityResults,
-    sample_added: toInsert.slice(0, 10).map((r) => ({ barcode: r.barcode, name: r.product_name, score: r.pure_score })),
+    query_results: queryResults,
   }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
