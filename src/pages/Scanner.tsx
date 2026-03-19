@@ -719,7 +719,7 @@ const Scanner = () => {
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
-    <div className="fixed inset-0 z-40 overflow-hidden bg-black">
+    <div className="fixed inset-0 z-40 bg-black" style={{ overflow: 'visible' }}>
       <input
         ref={fileInputRef}
         type="file"
