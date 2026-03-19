@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, X, ChevronDown, ChevronUp, Check, Camera } from "lucide-react";
 import { fetchProduct, analyzeIngredients } from "@/lib/scoring";
 import { addScanToHistory } from "@/lib/scan-history";
 import { canScan, recordScan } from "@/lib/scan-limits";
@@ -9,657 +8,149 @@ import { trackScan, trackUnknownBarcode } from "@/lib/track";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/session";
 import { toast } from "sonner";
-import { processPhotoScan, compressImageForAI } from "@/lib/photo-scan";
+import { Loader2, X, Camera } from "lucide-react";
 import type { ProductResult } from "@/lib/scoring";
 
 declare global {
   interface Window {
     Html5Qrcode: any;
-    Html5QrcodeScanType?: {
-      SCAN_TYPE_CAMERA?: number;
-    };
   }
-}
-
-type PhotoScanStep = "idle" | "front" | "front_captured" | "ingredients" | "processing";
-
-const StepIndicator = ({ current }: { current: 1 | 2 }) => (
-  <div className="mb-3 flex items-center gap-2">
-    <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-      current >= 1 ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/40"
-    }`}>
-      1
-    </div>
-    <div className={`h-0.5 w-8 ${current >= 2 ? "bg-primary" : "bg-white/20"}`} />
-    <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-      current >= 2 ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/40"
-    }`}>
-      2
-    </div>
-  </div>
-);
-
-function NotFoundPanel({
-  barcode,
-  manualIngredients,
-  setManualIngredients,
-  handleManualIngredients,
-  onPhotoScan,
-}: {
-  barcode: string;
-  manualIngredients: string;
-  setManualIngredients: (v: string) => void;
-  handleManualIngredients: () => void;
-  onPhotoScan: () => void;
-}) {
-  const [showSubmit, setShowSubmit] = useState(false);
-  const [subName, setSubName] = useState("");
-  const [subBrand, setSubBrand] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = () => {
-    if (!subName.trim()) return;
-    try {
-      supabase
-        .from("product_submissions")
-        .insert({
-          session_id: getSessionId(),
-          barcode,
-          product_name: subName.trim() || null,
-          brand: subBrand.trim() || null,
-          ingredients_raw: manualIngredients.trim() || null,
-        } as any)
-        .then(() => {});
-    } catch {
-      // fire and forget
-    }
-    setSubmitted(true);
-  };
-
-  return (
-    <div className="mt-4 animate-fade-in">
-      <p className="text-sm text-muted-foreground">We don't have this product yet.</p>
-
-      <button
-        onClick={onPhotoScan}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors"
-      >
-        <Camera size={18} />
-        Scan product with camera
-      </button>
-      <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
-        Take 2 quick photos to get your score instantly
-      </p>
-
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="bg-background px-3 text-xs text-muted-foreground">or type manually</span>
-        </div>
-      </div>
-
-      <textarea
-        placeholder="Paste or type the ingredient list here…"
-        value={manualIngredients}
-        onChange={(e) => setManualIngredients(e.target.value)}
-        rows={3}
-        className="w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
-      <button
-        onClick={handleManualIngredients}
-        disabled={!manualIngredients.trim()}
-        className="mt-2 w-full rounded-xl border border-primary/30 bg-primary/10 px-6 py-3 text-sm font-semibold text-primary transition-colors disabled:opacity-50"
-      >
-        Analyze ingredients
-      </button>
-
-      {!submitted ? (
-        <>
-          <button
-            onClick={() => setShowSubmit(!showSubmit)}
-            className="mt-3 flex items-center gap-1 text-xs text-primary/70 transition-colors hover:text-primary"
-          >
-            Help us add this product →
-            {showSubmit ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-          {showSubmit && (
-            <div className="mt-2 space-y-2 animate-fade-in">
-              <input
-                type="text"
-                placeholder="Product name"
-                value={subName}
-                onChange={(e) => setSubName(e.target.value)}
-                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <input
-                type="text"
-                placeholder="Brand (optional)"
-                value={subBrand}
-                onChange={(e) => setSubBrand(e.target.value)}
-                className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={!subName.trim()}
-                className="w-full rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
-              >
-                Submit product info
-              </button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="mt-3 flex items-center gap-2 text-xs text-primary">
-          <Check size={14} />
-          <span>Thank you — we'll add this soon</span>
-        </div>
-      )}
-    </div>
-  );
 }
 
 const Scanner = () => {
   const navigate = useNavigate();
   const [scanMode, setScanMode] = useState<"barcode" | "label">("barcode");
+  const [status, setStatus] = useState("Initializing camera…");
+  const [scanning, setScanning] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [barcode, setBarcode] = useState("");
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
-  const [showPulse, setShowPulse] = useState(false);
-  const [blocked, setBlocked] = useState(!canScan());
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [scanLoading, setScanLoading] = useState(false);
-  const [scannerStarted, setScannerStarted] = useState(false);
-  const [photoProcessing, setPhotoProcessing] = useState(false);
-  const [photoProgress, setPhotoProgress] = useState("");
-  const [showManualIngredientEntry, setShowManualIngredientEntry] = useState(false);
-  const [manualIngredientsLabel, setManualIngredientsLabel] = useState("");
-  const [labelScanError, setLabelScanError] = useState(false);
-  const [photoScanStep, setPhotoScanStep] = useState<PhotoScanStep>("idle");
-  const [frontImageBase64, setFrontImageBase64] = useState("");
-  const [frontData, setFrontData] = useState<any>(null);
 
-  const notFoundBarcode = useRef("");
-  const html5QrRef = useRef<any>(null);
-  const scanningRef = useRef(false);
-  const autoStarted = useRef(false);
+  const scannerRef = useRef<any>(null);
+  const mountedRef = useRef(true);
   const lastBarcode = useRef("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const twoStepFileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setBlocked(!canScan());
-  }, []);
-
-  const stopScanner = useCallback(async () => {
-    scanningRef.current = false;
-    if (html5QrRef.current) {
-      try {
-        await html5QrRef.current.stop();
-      } catch {}
-      try {
-        html5QrRef.current.clear();
-      } catch {}
-      html5QrRef.current = null;
-    }
-    setScannerStarted(false);
-  }, []);
-
-  useEffect(() => {
-    if (showManual && photoScanStep === "idle") {
-      void stopScanner();
-    }
-  }, [showManual, photoScanStep, stopScanner]);
-
-  useEffect(() => {
-    return () => {
-      void stopScanner();
-    };
-  }, [stopScanner]);
-
+  // --- Navigation helper (keeps scan history, tracking, water detection) ---
   const navigateWithScan = useCallback(
-    (product: ProductResult, method: "barcode" | "photo" | "manual" = "barcode", forceIsWater?: boolean) => {
-      if (!canScan()) {
-        navigate("/paywall");
-        return;
-      }
-
+    (product: ProductResult, method: "barcode" | "photo" | "manual" = "barcode") => {
+      if (!canScan()) { navigate("/paywall"); return; }
       const { remaining } = recordScan();
       addScanToHistory(product);
-      setShowPulse(true);
 
       const categories = (product as any).categoriesRaw ?? "";
-      const isWater = forceIsWater === true || isWaterProduct(product.name, categories);
+      const isWater = isWaterProduct(product.name, categories);
       const waterBrand = isWater ? findWaterBrand(product.name, product.brand) : undefined;
-
       trackScan(product, lastBarcode.current || undefined, isWater, waterBrand?.name, method);
 
       if (isWater) {
-        setTimeout(() => {
-          navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
-        }, 350);
+        navigate("/water-report", { state: { product, waterBrand, scansRemaining: remaining } });
       } else {
-        setTimeout(() => {
-          navigate("/result", {
-            state: { product, scansRemaining: remaining, fromPhotoScan: method === "photo" },
-          });
-        }, 350);
+        navigate("/result", { state: { product, scansRemaining: remaining, fromPhotoScan: method === "photo" } });
       }
     },
-    [navigate]
+    [navigate],
   );
 
-  const handleDetectedBarcode = useCallback(
-    async (code: string) => {
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-      try {
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 1200;
-        gain.gain.value = 0.15;
-        osc.start();
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-        osc.stop(ctx.currentTime + 0.15);
-      } catch {}
+  // --- Stop scanner ---
+  async function stopScanner() {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); } catch {}
+      try { scannerRef.current.clear(); } catch {}
+      scannerRef.current = null;
+    }
+  }
 
-      if (!canScan()) {
-        navigate("/paywall");
-        return;
-      }
-
-      setScanLoading(true);
-      try {
-        lastBarcode.current = code;
-        const product = await fetchProduct(code);
-        if (product) {
-          navigateWithScan(product, "barcode");
-          return;
-        }
-
-        trackUnknownBarcode(code);
-        setScanLoading(false);
-        setBarcode(code);
-        notFoundBarcode.current = code;
-        setNotFound(true);
-        setShowManual(true);
-      } catch {
-        trackUnknownBarcode(code);
-        setScanLoading(false);
-        setBarcode(code);
-        notFoundBarcode.current = code;
-        setNotFound(true);
-        setShowManual(true);
-      }
-    },
-    [navigate, navigateWithScan]
-  );
-
-  const startBarcodeScanner = useCallback(async () => {
-    if (scanningRef.current || blocked || scanMode !== "barcode") return;
-
+  // --- Start scanner ---
+  async function startScanner() {
+    if (!window.Html5Qrcode) {
+      setStatus("Scanner not available — reload the page");
+      return;
+    }
     await stopScanner();
 
-    const container = document.getElementById("qr-reader-element");
-    if (!container) {
-      console.error("qr-reader-element not found in DOM");
-      return;
-    }
-
-    if (!window.Html5Qrcode) {
-      console.error("Html5Qrcode not loaded from CDN");
-      setCameraError("Scanner library failed to load. Please reload the page.");
-      return;
-    }
+    const scanner = new window.Html5Qrcode("qr-reader-element", { verbose: false });
+    scannerRef.current = scanner;
 
     try {
-      setCameraError(null);
-      const html5QrCode = new window.Html5Qrcode("qr-reader-element", {
-        verbose: false,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      });
-
-      html5QrRef.current = html5QrCode;
-      scanningRef.current = true;
-
-      await html5QrCode.start(
+      await scanner.start(
         { facingMode: "environment" },
         {
           fps: 15,
           qrbox: { width: 280, height: 180 },
           aspectRatio: 1.7777,
           supportedScanTypes: [0],
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         },
         (decodedText: string) => {
-          console.log('SCAN SUCCESS:', decodedText);
-          if (!scanningRef.current || !decodedText || decodedText.length < 4) return;
-          scanningRef.current = false;
-          html5QrCode
-            .stop()
-            .then(() => handleDetectedBarcode(decodedText))
-            .catch(() => handleDetectedBarcode(decodedText));
+          console.log("SCAN SUCCESS:", decodedText);
+          if (!mountedRef.current || !decodedText || decodedText.length < 4) return;
+          // Prevent double-fire
+          mountedRef.current = false;
+          setScanning(true);
+          setStatus("Found! Looking up product…");
+          scanner.stop()
+            .then(() => handleBarcode(decodedText))
+            .catch(() => handleBarcode(decodedText));
         },
-        () => {}
+        () => {},
       );
-
-      setScannerStarted(true);
-    } catch (err: any) {
-      console.error("html5-qrcode start error:", err);
-      scanningRef.current = false;
-      if (err?.message?.includes("NotAllowedError") || err?.name === "NotAllowedError") {
-        setCameraError("Camera access denied. Please allow camera access in your browser settings, then reload.");
-      } else if (err?.message?.includes("NotFoundError")) {
-        setCameraError("No camera found. Use manual entry below.");
+      setStatus("Point camera at barcode");
+    } catch (e: any) {
+      console.error("Camera start error:", e);
+      if (e?.message?.includes("NotAllowedError") || e?.name === "NotAllowedError") {
+        setStatus("Camera access denied — allow camera in browser settings");
       } else {
-        setCameraError("Could not start camera. Try again or use manual entry.");
+        setStatus("Camera error: " + (e?.message || "unknown"));
       }
     }
-  }, [blocked, handleDetectedBarcode, scanMode, stopScanner]);
+  }
 
-  useEffect(() => {
-    if (autoStarted.current || blocked || showManual || photoScanStep !== "idle" || scanMode !== "barcode") return;
-    autoStarted.current = true;
-    const timer = setTimeout(() => {
-      void startBarcodeScanner();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [blocked, photoScanStep, scanMode, showManual, startBarcodeScanner]);
-
-  useEffect(() => {
-    if (scanMode === "barcode" && !scanningRef.current && !scannerStarted && !showManual && autoStarted.current) {
-      void startBarcodeScanner();
-    }
-  }, [scanMode, scannerStarted, showManual, startBarcodeScanner]);
-
-  const uploadImage = async (base64: string, folder: string): Promise<string | null> => {
+  // --- Handle a detected barcode ---
+  async function handleBarcode(code: string) {
+    // Haptic + beep
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
     try {
-      const { compressed } = await compressImageForAI(base64);
-      const blob = await (await fetch(compressed)).blob();
-      const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
-      const { error } = await supabase.storage.from("product-images").upload(fileName, blob, {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
-      if (error) {
-        console.error("Upload error:", error);
-        return null;
-      }
-      const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(fileName);
-      return urlData?.publicUrl || null;
-    } catch (err) {
-      console.error("Upload failed:", err);
-      return null;
-    }
-  };
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 1200; gain.gain.value = 0.15;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.stop(ctx.currentTime + 0.15);
+    } catch {}
 
-  const startTwoStepPhotoScan = useCallback(async () => {
-    setShowManual(false);
-    setNotFound(false);
-    setPhotoScanStep("front");
-    setScanMode("label");
-    await stopScanner();
-    setTimeout(() => twoStepFileInputRef.current?.click(), 300);
-  }, [stopScanner]);
+    if (!canScan()) { navigate("/paywall"); return; }
 
-  const handleTwoStepFileCapture = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      if (twoStepFileInputRef.current) twoStepFileInputRef.current.value = "";
-
-      if (photoScanStep === "front") {
-        setPhotoProcessing(true);
-        setPhotoProgress("Reading front label…");
-
-        try {
-          const { compressed } = await compressImageForAI(base64);
-          setFrontImageBase64(compressed);
-
-          const { data, error } = await supabase.functions.invoke("extract-product-photos", {
-            body: { step: "front", image: compressed },
-          });
-
-          if (error || !data) throw new Error(error?.message || "Failed to read front label");
-          if (data.error === "no_label_visible") {
-            toast.error("Couldn't read the front label. Try again with better lighting.");
-            setPhotoProcessing(false);
-            setPhotoProgress("");
-            return;
-          }
-
-          setFrontData(data);
-          setPhotoScanStep("front_captured");
-          setPhotoProcessing(false);
-          setPhotoProgress("");
-
-          setTimeout(() => {
-            setPhotoScanStep("ingredients");
-            setTimeout(() => twoStepFileInputRef.current?.click(), 300);
-          }, 800);
-          return;
-        } catch (err: any) {
-          console.error("Front label error:", err);
-          toast.error("Couldn't read front label. Try again.");
-          setPhotoProcessing(false);
-          setPhotoProgress("");
-          return;
-        }
-      }
-
-      if (photoScanStep !== "ingredients") return;
-
-      setPhotoProcessing(true);
-      setPhotoProgress("Reading ingredients…");
-      setPhotoScanStep("processing");
-
-      try {
-        const { compressed: ingredientsCompressed } = await compressImageForAI(base64);
-
-        const { data: ingredData, error: ingredError } = await supabase.functions.invoke("extract-product-photos", {
-          body: { step: "ingredients", image: ingredientsCompressed },
-        });
-
-        if (ingredError || !ingredData) throw new Error(ingredError?.message || "Failed to read ingredients");
-        if (ingredData.error === "no_ingredients_visible") {
-          toast.error("Couldn't read ingredients. Try a clearer photo.");
-          setPhotoScanStep("ingredients");
-          setPhotoProcessing(false);
-          setPhotoProgress("");
-          return;
-        }
-
-        const ingredientsRaw = ingredData.ingredient_text_raw || "";
-        if (!ingredientsRaw.trim()) {
-          toast.error("No ingredients found. Try getting closer to the label.");
-          setPhotoScanStep("ingredients");
-          setPhotoProcessing(false);
-          setPhotoProgress("");
-          return;
-        }
-
-        const productName = frontData?.product_name || "Photo Scanned Product";
-        const brandName = frontData?.brand_name || "Unknown Brand";
-        const isWater = frontData?.is_water === true;
-
-        setPhotoProgress("Calculating Pure Score…");
-        const { score, flagged } = analyzeIngredients(ingredientsRaw);
-
-        setPhotoProgress("Saving to database…");
-        const [frontUrl, ingredientsUrl] = await Promise.all([
-          uploadImage(frontImageBase64, "front"),
-          uploadImage(ingredientsCompressed, "ingredients"),
-        ]);
-
-        const product: ProductResult = {
-          name: productName,
-          brand: brandName,
-          score,
-          ingredientsRaw,
-          flagged,
-          categoriesRaw: frontData?.category || "",
-        };
-
-        const barcodeValue = notFoundBarcode.current || `photo_${Date.now()}`;
-        try {
-          await (supabase as any).rpc("upsert_product", {
-            p_barcode: barcodeValue,
-            p_product_name: productName,
-            p_brand: brandName,
-            p_pure_score: score,
-            p_ingredients_raw: ingredientsRaw,
-            p_flagged_count: flagged.length,
-            p_flagged_categories: [...new Set(flagged.map((f) => f.category))],
-            p_flagged_ingredients: flagged.map((f) => f.name),
-            p_categories_raw: frontData?.category || "",
-            p_image_url: frontUrl || "",
-            p_is_water: isWater,
-            p_water_brand: "",
-          });
-
-          if (frontUrl || ingredientsUrl) {
-            await supabase
-              .from("products")
-              .update({
-                front_image_url: frontUrl,
-                ingredients_image_url: ingredientsUrl,
-                data_confidence: "medium",
-                needs_review: false,
-                enrichment_source: "photo_scan",
-                data_source: "photo_scan",
-              } as any)
-              .eq("barcode", barcodeValue);
-          }
-        } catch (err) {
-          console.error("Product save error:", err);
-        }
-
-        try {
-          supabase
-            .from("enrichment_queue" as any)
-            .insert({
-              session_id: getSessionId(),
-              product_name: productName,
-              brand: brandName,
-              barcode: barcodeValue,
-              ingredient_text_raw: ingredientsRaw,
-              confidence: ingredData.confidence || "medium",
-              image_size_bytes: Math.round(ingredientsCompressed.length * 0.75),
-              processing_status: "pending",
-            })
-            .then(() => {});
-        } catch {}
-
-        setPhotoScanStep("idle");
-        setFrontImageBase64("");
-        setFrontData(null);
-        setPhotoProcessing(false);
-        setPhotoProgress("");
-        lastBarcode.current = barcodeValue;
-        navigateWithScan(product, "photo", isWater);
-      } catch (err: any) {
-        console.error("Ingredients capture error:", err);
-        toast.error("Could not read ingredients. Try better lighting or type manually.");
-        setPhotoScanStep("ingredients");
-        setPhotoProcessing(false);
-        setPhotoProgress("");
-      }
-    },
-    [frontData, frontImageBase64, navigateWithScan, photoScanStep]
-  );
-
-  const cancelTwoStepFlow = () => {
-    setPhotoScanStep("idle");
-    setFrontImageBase64("");
-    setFrontData(null);
-    setPhotoProcessing(false);
-    setPhotoProgress("");
-    setScanMode("barcode");
-  };
-
-  const handleLabelFileCapture = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (!canScan()) {
-        navigate("/paywall");
+    lastBarcode.current = code;
+    try {
+      const product = await fetchProduct(code);
+      if (product) {
+        navigateWithScan(product, "barcode");
         return;
       }
+    } catch {}
 
-      setPhotoProcessing(true);
-      setPhotoProgress("Reading label…");
-      setLabelScanError(false);
+    // Not found
+    trackUnknownBarcode(code);
+    setScanning(false);
+    setBarcode(code);
+    setNotFound(true);
+    setShowManual(true);
+    setStatus("Product not found");
+  }
 
-      try {
-        const reader = new FileReader();
-        const base64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        const result = await processPhotoScan(base64, (step) => setPhotoProgress(step));
-
-        if (result.confidence === "low") {
-          toast.error("Couldn't read this label clearly. Try better lighting or get closer.");
-          setPhotoProcessing(false);
-          setPhotoProgress("");
-          return;
-        }
-
-        lastBarcode.current = result.rawResponse?.barcode || "";
-        const isWater = result.rawResponse?.is_water === true;
-        navigateWithScan(result.product, "photo", isWater);
-      } catch (err: any) {
-        console.error("Label scan error:", err);
-        toast.error("Could not read label — try better lighting or type manually");
-        setPhotoProcessing(false);
-        setPhotoProgress("");
-        setLabelScanError(true);
-      } finally {
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    },
-    [navigate, navigateWithScan]
-  );
-
-  const handleManualLabelIngredients = () => {
-    if (!manualIngredientsLabel.trim()) return;
-    const { score, flagged } = analyzeIngredients(manualIngredientsLabel);
-    const product: ProductResult = {
-      name: "Manual Entry",
-      brand: "—",
-      score,
-      ingredientsRaw: manualIngredientsLabel,
-      flagged,
-    };
-    navigateWithScan(product, "manual");
-  };
-
-  const handleBarcodeLookup = async () => {
+  // --- Manual barcode lookup ---
+  async function handleBarcodeLookup() {
     if (!barcode.trim()) return;
-    if (blocked) {
-      navigate("/paywall");
-      return;
-    }
-
+    if (!canScan()) { navigate("/paywall"); return; }
     setLoading(true);
     setNotFound(false);
     try {
       lastBarcode.current = barcode.trim();
-      notFoundBarcode.current = barcode.trim();
       const product = await fetchProduct(barcode.trim());
       if (product) {
         navigateWithScan(product, "barcode");
@@ -673,119 +164,64 @@ const Scanner = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleManualIngredients = () => {
+  // --- Manual ingredients ---
+  function handleManualIngredients() {
     if (!manualIngredients.trim()) return;
     const { score, flagged } = analyzeIngredients(manualIngredients);
-    const product: ProductResult = {
-      name: "Manual Entry",
-      brand: "—",
-      score,
-      ingredientsRaw: manualIngredients,
-      flagged,
-    };
+    const product: ProductResult = { name: "Manual Entry", brand: "—", score, ingredientsRaw: manualIngredients, flagged };
     navigateWithScan(product, "manual");
-  };
+  }
 
-  const openLabelCapture = useCallback(() => {
-    window.setTimeout(() => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-        fileInputRef.current.click();
-      }
-    }, 0);
+  // --- Label scan (file input) ---
+  const handleLabelCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Placeholder — label scan logic can be re-added later
+    toast.info("Label scan coming soon — use barcode mode for now");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
-  const handleModeSwitch = async (mode: "barcode" | "label") => {
-    if (mode === scanMode) return;
-
-    setShowManual(false);
-    setShowManualIngredientEntry(false);
-    setNotFound(false);
-    setLabelScanError(false);
-    setCameraError(null);
-    setScanMode(mode);
-
-    if (mode === "label") {
-      void stopScanner().finally(() => {
-        openLabelCapture();
-      });
-      return;
+  // --- Lifecycle ---
+  useEffect(() => {
+    mountedRef.current = true;
+    if (scanMode === "barcode") {
+      const timer = setTimeout(() => startScanner(), 300);
+      return () => { clearTimeout(timer); mountedRef.current = false; void stopScanner(); };
     }
-
-    await startBarcodeScanner();
-  };
-
-  const isTwoStepActive = photoScanStep !== "idle";
+    return () => { mountedRef.current = false; void stopScanner(); };
+  }, [scanMode]);
 
   return (
-    <div className="fixed inset-0 z-40 bg-black" style={{ overflow: 'visible', transform: 'none', willChange: 'auto' }}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleLabelFileCapture}
-        className="hidden"
-      />
-      <input
-        ref={twoStepFileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleTwoStepFileCapture}
-        className="hidden"
-      />
+    <div className="fixed inset-0 z-40 bg-black" style={{ overflow: "visible", transform: "none", willChange: "auto" }}>
+      {/* Hidden file input for label scan */}
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleLabelCapture} className="hidden" />
 
+      {/* Camera renders here */}
       <div
         id="qr-reader-element"
         style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          zIndex: 1,
-          display: scanMode === "barcode" && !showManual && photoScanStep === "idle" ? "block" : "none",
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 1,
+          display: scanMode === "barcode" && !showManual ? "block" : "none",
         }}
       />
 
-      {(scanMode === "label" || !scannerStarted) && <div className="absolute inset-0 bg-black" style={{ zIndex: 1 }} />}
+      {/* Black bg when no camera */}
+      {scanMode === "label" && <div className="absolute inset-0 bg-black" style={{ zIndex: 1 }} />}
 
-      {showPulse && <div className="pointer-events-none absolute inset-0 z-[100] animate-scan-pulse bg-primary/40" />}
-
-      {(scanLoading || photoProcessing) && (
+      {/* Loading overlay */}
+      {scanning && (
         <div className="pointer-events-none absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/60">
           <Loader2 size={32} className="animate-spin text-primary" />
-          <p className="mt-3 text-sm font-medium text-white/80">
-            {photoProcessing ? photoProgress || "Reading label…" : "Identifying product…"}
-          </p>
+          <p className="mt-3 text-sm font-medium text-white/80">Identifying product…</p>
         </div>
       )}
 
-      {cameraError && (
-        <div className="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-black">
-          <div className="px-8 text-center">
-            <Camera size={40} className="mx-auto mb-3 text-white/30" />
-            <p className="mb-4 text-sm text-white/70">{cameraError}</p>
-            <button
-              onClick={async () => {
-                setCameraError(null);
-                autoStarted.current = false;
-                await startBarcodeScanner();
-              }}
-              className="rounded-xl bg-primary/20 px-5 py-2.5 text-sm font-medium text-primary transition-colors active:bg-primary/30"
-            >
-              Try again
-            </button>
-          </div>
-        </div>
-      )}
-
+      {/* Header */}
       <div className="fixed left-0 right-0 top-0 flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+16px)]" style={{ zIndex: 10 }}>
         <button
-          onClick={() => (isTwoStepActive ? cancelTwoStepFlow() : navigate(-1))}
+          onClick={() => navigate(-1)}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors active:bg-black/50"
         >
           <X size={20} strokeWidth={1.8} />
@@ -796,164 +232,67 @@ const Scanner = () => {
         <div className="w-10" />
       </div>
 
-      {isTwoStepActive ? (
-        <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 10 }}>
-          <div className="pointer-events-auto flex flex-col items-center">
-            <StepIndicator current={photoScanStep === "front" || photoScanStep === "front_captured" ? 1 : 2} />
-
-            <p className="mb-4 px-8 text-center text-sm font-medium text-white drop-shadow-md">
-              {photoScanStep === "front" && "Tap below to photograph the front label"}
-              {photoScanStep === "front_captured" && (
-                <span className="flex items-center gap-1.5 text-primary">
-                  <Check size={16} /> Front label captured!
-                </span>
-              )}
-              {photoScanStep === "ingredients" && "Now tap to photograph the ingredients label"}
-              {photoScanStep === "processing" && "Processing your photos…"}
-            </p>
-
-            {!photoProcessing && (photoScanStep === "front" || photoScanStep === "ingredients") && (
-              <button
-                onClick={() => twoStepFileInputRef.current?.click()}
-                className="mt-5 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-white/20 text-white backdrop-blur-sm transition-all active:scale-95 active:bg-white/40"
-                aria-label={photoScanStep === "front" ? "Capture front label" : "Capture ingredients"}
-              >
-                <Camera size={24} />
-              </button>
-            )}
-
-            {photoScanStep === "front_captured" && (
-              <div className="mt-5 flex h-16 w-16 items-center justify-center rounded-full border-4 border-primary bg-primary/20 backdrop-blur-sm">
-                <Check size={28} className="text-primary" />
-              </div>
-            )}
-
-            {!photoProcessing && (
-              <button
-                onClick={cancelTwoStepFlow}
-                className="mt-4 text-xs text-white/50 underline underline-offset-2 transition-colors active:text-white/70"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {scannerStarted && scanMode === "barcode" && (
-            <div className="pointer-events-none fixed inset-0 flex flex-col items-center justify-center" style={{ zIndex: 10 }}>
-              {/* Scan target box */}
-              <div
-                style={{
-                  width: 280,
-                  height: 180,
-                  border: '2px solid rgba(255, 255, 255, 0.7)',
-                  borderRadius: 12,
-                  position: 'relative',
-                }}
-              >
-                {/* Animated scan line */}
-                <div
-                  className="absolute left-2 right-2 h-[2px] animate-scan-line"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, transparent 0%, hsl(157, 70%, 45%) 20%, hsl(157, 70%, 50%) 50%, hsl(157, 70%, 45%) 80%, transparent 100%)",
-                    boxShadow: "0 0 12px 2px hsla(157, 70%, 45%, 0.4)",
-                  }}
-                />
-              </div>
-              <p className="mt-3 text-xs font-medium text-white/70 drop-shadow-sm">
-                Align barcode within frame
-              </p>
-            </div>
-          )}
-
-          {scanMode === "label" && labelScanError && (
-            <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
-              <div className="rounded-2xl bg-black/70 px-6 py-4 text-center backdrop-blur-md">
-                <p className="mb-2 text-sm text-white/80">Label scan encountered an error</p>
-                <button
-                  onClick={() => {
-                    setLabelScanError(false);
-                    openLabelCapture();
-                  }}
-                  className="mr-3 text-xs text-primary underline"
-                >
-                  Try again
-                </button>
-                <button
-                  onClick={() => {
-                    setLabelScanError(false);
-                    void handleModeSwitch("barcode");
-                  }}
-                  className="text-xs text-white/50 underline"
-                >
-                  Switch to barcode
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+12px)]" style={{ zIndex: 10 }}>
+      {/* Scan target overlay */}
+      {scanMode === "barcode" && !showManual && (
+        <div className="pointer-events-none fixed inset-0 flex flex-col items-center justify-center" style={{ zIndex: 10 }}>
+          <div style={{ width: 280, height: 180, border: "2px solid rgba(255,255,255,0.7)", borderRadius: 12, position: "relative" }}>
             <div
-              className="flex flex-col items-center gap-2 rounded-2xl px-4 py-3"
+              className="absolute left-2 right-2 h-[2px] animate-scan-line"
               style={{
-                background: "rgba(0, 0, 0, 0.45)",
-                backdropFilter: "blur(24px)",
-                WebkitBackdropFilter: "blur(24px)",
+                background: "linear-gradient(90deg, transparent 0%, hsl(157, 70%, 45%) 20%, hsl(157, 70%, 50%) 50%, hsl(157, 70%, 45%) 80%, transparent 100%)",
+                boxShadow: "0 0 12px 2px hsla(157, 70%, 45%, 0.4)",
               }}
-            >
-              <div className="flex overflow-hidden rounded-full border border-white/15">
-                <button
-                  onClick={() => void handleModeSwitch("barcode")}
-                  className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
-                    scanMode === "barcode"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-transparent text-white/60 active:text-white/80"
-                  }`}
-                >
-                  Barcode
-                </button>
-                <button
-                  onClick={() => void handleModeSwitch("label")}
-                  className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
-                    scanMode === "label"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-transparent text-white/60 active:text-white/80"
-                  }`}
-                >
-                  Label Scan
-                </button>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (scanMode === "barcode") {
-                    setShowManual(true);
-                    setNotFound(false);
-                  } else {
-                    setShowManualIngredientEntry(true);
-                  }
-                }}
-                className="text-[11px] text-white/30 transition-colors active:text-white/50"
-              >
-                {scanMode === "barcode" ? "Enter barcode manually" : "Type ingredients manually"}
-              </button>
-            </div>
+            />
           </div>
-        </>
+          <p className="mt-3 text-xs font-medium text-white/70 drop-shadow-sm">{status}</p>
+        </div>
       )}
 
-      {showManual && scanMode === "barcode" && !isTwoStepActive && (
+      {/* Bottom controls */}
+      {!showManual && (
+        <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+12px)]" style={{ zIndex: 10 }}>
+          <div
+            className="flex flex-col items-center gap-2 rounded-2xl px-4 py-3"
+            style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }}
+          >
+            <div className="flex overflow-hidden rounded-full border border-white/15">
+              <button
+                onClick={() => setScanMode("barcode")}
+                className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
+                  scanMode === "barcode" ? "bg-primary text-primary-foreground" : "bg-transparent text-white/60 active:text-white/80"
+                }`}
+              >
+                Barcode
+              </button>
+              <button
+                onClick={() => {
+                  setScanMode("label");
+                  void stopScanner();
+                  setTimeout(() => fileInputRef.current?.click(), 300);
+                }}
+                className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
+                  scanMode === "label" ? "bg-primary text-primary-foreground" : "bg-transparent text-white/60 active:text-white/80"
+                }`}
+              >
+                Label Scan
+              </button>
+            </div>
+            <button
+              onClick={() => { setShowManual(true); setNotFound(false); }}
+              className="text-[11px] text-white/30 transition-colors active:text-white/50"
+            >
+              Enter barcode manually
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual entry panel */}
+      {showManual && (
         <div className="fixed inset-x-0 bottom-0 z-50 animate-fade-in rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-              Enter barcode
-            </h3>
-            <button onClick={() => {
-              setShowManual(false);
-              setNotFound(false);
-            }} className="text-muted-foreground active:text-foreground">
+            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>Enter barcode</h3>
+            <button onClick={() => { setShowManual(false); setNotFound(false); mountedRef.current = true; void startScanner(); }} className="text-muted-foreground active:text-foreground">
               <X size={20} strokeWidth={1.8} />
             </button>
           </div>
@@ -964,70 +303,37 @@ const Scanner = () => {
               placeholder="e.g. 0028400064057"
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleBarcodeLookup()}
               className="flex-1 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <button
               onClick={handleBarcodeLookup}
               disabled={loading || !barcode.trim()}
-              className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+              className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : "Look up"}
             </button>
           </div>
-          {loading && (
-            <div className="mt-4 space-y-3">
-              <div className="h-4 w-3/4 animate-pulse rounded-xl bg-muted" />
-              <div className="h-4 w-1/2 animate-pulse rounded-xl bg-muted" />
-              <div className="h-12 w-full animate-pulse rounded-xl bg-muted" />
+
+          {notFound && (
+            <div className="mt-4 animate-fade-in">
+              <p className="text-sm text-muted-foreground">We don't have this product yet.</p>
+              <textarea
+                placeholder="Paste or type the ingredient list here…"
+                value={manualIngredients}
+                onChange={(e) => setManualIngredients(e.target.value)}
+                rows={3}
+                className="mt-3 w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <button
+                onClick={handleManualIngredients}
+                disabled={!manualIngredients.trim()}
+                className="mt-2 w-full rounded-xl border border-primary/30 bg-primary/10 px-6 py-3 text-sm font-semibold text-primary transition-colors disabled:opacity-50"
+              >
+                Analyze ingredients
+              </button>
             </div>
           )}
-          {notFound && (
-            <NotFoundPanel
-              barcode={barcode}
-              manualIngredients={manualIngredients}
-              setManualIngredients={setManualIngredients}
-              handleManualIngredients={handleManualIngredients}
-              onPhotoScan={startTwoStepPhotoScan}
-            />
-          )}
-        </div>
-      )}
-
-      {showManualIngredientEntry && scanMode === "label" && !isTwoStepActive && (
-        <div className="fixed inset-x-0 bottom-0 z-50 animate-fade-in rounded-t-2xl bg-background px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-              Type ingredients
-            </h3>
-            <button onClick={() => setShowManualIngredientEntry(false)} className="text-muted-foreground active:text-foreground">
-              <X size={20} strokeWidth={1.8} />
-            </button>
-          </div>
-          <textarea
-            placeholder="Paste or type the ingredient list here…"
-            value={manualIngredientsLabel}
-            onChange={(e) => setManualIngredientsLabel(e.target.value)}
-            rows={4}
-            className="w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <button
-            onClick={handleManualLabelIngredients}
-            disabled={!manualIngredientsLabel.trim()}
-            className="mt-3 w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50"
-          >
-            Analyze ingredients
-          </button>
-        </div>
-      )}
-
-      {!showManual && !showManualIngredientEntry && !isTwoStepActive && blocked && !photoProcessing && (
-        <div className="fixed inset-x-0 bottom-0 z-50 px-6 pb-[calc(env(safe-area-inset-bottom)+16px)]">
-          <button
-            onClick={() => navigate("/paywall")}
-            className="w-full rounded-xl bg-destructive/90 px-6 py-3.5 text-sm font-semibold text-destructive-foreground transition-colors"
-          >
-            No scans left — Upgrade
-          </button>
         </div>
       )}
     </div>
