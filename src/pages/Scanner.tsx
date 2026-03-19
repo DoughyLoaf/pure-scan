@@ -319,8 +319,10 @@ const Scanner = () => {
 
     try {
       setCameraError(null);
-      const html5QrCode = new window.Html5Qrcode("qr-reader-element", { verbose: false });
-      const scanType = window.Html5QrcodeScanType?.SCAN_TYPE_CAMERA ?? 0;
+      const html5QrCode = new window.Html5Qrcode("qr-reader-element", {
+        verbose: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      });
 
       html5QrRef.current = html5QrCode;
       scanningRef.current = true;
@@ -329,9 +331,9 @@ const Scanner = () => {
         { facingMode: "environment" },
         {
           fps: 15,
-          qrbox: { width: 300, height: 200 },
-          aspectRatio: window.innerHeight / window.innerWidth,
-          supportedScanTypes: [scanType],
+          qrbox: { width: 280, height: 180 },
+          aspectRatio: 1.7777,
+          supportedScanTypes: [0],
         },
         (decodedText: string) => {
           if (!scanningRef.current || !decodedText || decodedText.length < 4) return;
@@ -717,7 +719,7 @@ const Scanner = () => {
   const isTwoStepActive = photoScanStep !== "idle";
 
   return (
-    <div className="fixed inset-0 z-40 overflow-hidden bg-black">
+    <div className="fixed inset-0 z-40 bg-black" style={{ overflow: 'visible' }}>
       <input
         ref={fileInputRef}
         type="file"
@@ -838,15 +840,30 @@ const Scanner = () => {
       ) : (
         <>
           {scannerStarted && scanMode === "barcode" && (
-            <div className="pointer-events-none fixed inset-x-6 bottom-[35%] top-[30%] overflow-hidden" style={{ zIndex: 10 }}>
+            <div className="pointer-events-none fixed inset-0 flex flex-col items-center justify-center" style={{ zIndex: 10 }}>
+              {/* Scan target box */}
               <div
-                className="absolute left-0 right-0 h-[2px] animate-scan-line"
                 style={{
-                  background:
-                    "linear-gradient(90deg, transparent 0%, hsl(157, 70%, 45%) 20%, hsl(157, 70%, 50%) 50%, hsl(157, 70%, 45%) 80%, transparent 100%)",
-                  boxShadow: "0 0 12px 2px hsla(157, 70%, 45%, 0.4)",
+                  width: 280,
+                  height: 180,
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  borderRadius: 12,
+                  position: 'relative',
                 }}
-              />
+              >
+                {/* Animated scan line */}
+                <div
+                  className="absolute left-2 right-2 h-[2px] animate-scan-line"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent 0%, hsl(157, 70%, 45%) 20%, hsl(157, 70%, 50%) 50%, hsl(157, 70%, 45%) 80%, transparent 100%)",
+                    boxShadow: "0 0 12px 2px hsla(157, 70%, 45%, 0.4)",
+                  }}
+                />
+              </div>
+              <p className="mt-3 text-xs font-medium text-white/70 drop-shadow-sm">
+                Align barcode within frame
+              </p>
             </div>
           )}
 
