@@ -319,8 +319,10 @@ const Scanner = () => {
 
     try {
       setCameraError(null);
-      const html5QrCode = new window.Html5Qrcode("qr-reader-element", { verbose: false });
-      const scanType = window.Html5QrcodeScanType?.SCAN_TYPE_CAMERA ?? 0;
+      const html5QrCode = new window.Html5Qrcode("qr-reader-element", {
+        verbose: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      });
 
       html5QrRef.current = html5QrCode;
       scanningRef.current = true;
@@ -329,9 +331,9 @@ const Scanner = () => {
         { facingMode: "environment" },
         {
           fps: 15,
-          qrbox: { width: 300, height: 200 },
-          aspectRatio: window.innerHeight / window.innerWidth,
-          supportedScanTypes: [scanType],
+          qrbox: { width: 280, height: 180 },
+          aspectRatio: 1.7777,
+          supportedScanTypes: [0],
         },
         (decodedText: string) => {
           if (!scanningRef.current || !decodedText || decodedText.length < 4) return;
