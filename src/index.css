@@ -76,6 +76,12 @@ iframe[src*="lovable"] {
   display: none !important;
 }
 
+/* Scanner wrapper: never clip the decode canvas */
+#qr-reader-element,
+#qr-reader-element * {
+  overflow: visible !important;
+}
+
 /* html5-qrcode: let the library own the full-screen camera stream */
 #qr-reader-element {
   border: none !important;
@@ -84,8 +90,9 @@ iframe[src*="lovable"] {
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  overflow: hidden !important;
   z-index: 1 !important;
+  transform: none !important;
+  will-change: auto !important;
 }
 #qr-reader-element video {
   width: 100% !important;
@@ -106,4 +113,5 @@ iframe[src*="lovable"] {
   width: 100% !important;
   height: 100% !important;
   min-height: 100vh !important;
+  overflow: visible !important;
 }
